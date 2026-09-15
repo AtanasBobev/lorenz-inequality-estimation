@@ -1,13 +1,26 @@
-// Domain data structures and result types
-
 export interface QuantilePoint {
-  readonly populationShare: number; // Cumulative share p, where 0 <= p <= 1
-  readonly incomeShare: number;     // Cumulative income share L, where 0 <= L <= 1
+  readonly populationShare: number;
+  readonly incomeShare: number;
 }
 
 export interface QuantileDataset {
   readonly points: readonly QuantilePoint[];
   readonly meanIncome: number;
+}
+
+export interface TridiagonalSystem {
+  readonly lower: number[];
+  readonly diag: number[];
+  readonly upper: number[];
+  readonly rhs: number[];
+}
+
+export interface RootResult {
+  readonly root: number;
+  readonly populationPercentile: number;
+  readonly iterations: number;
+  readonly converged: boolean;
+  readonly finalError: number;
 }
 
 export interface GiniResult {
@@ -22,15 +35,9 @@ export interface WelfareResult {
   readonly giniIndex: number;
 }
 
-export interface RootResult {
-  readonly populationPercentile: number;
-  readonly iterations: number;
-  readonly converged: boolean;
-  readonly finalError: number;
-}
-
 export interface ConsumptionResult {
-  readonly autonomousConsumption: number; // C_0
-  readonly marginalPropensityToConsume: number; // c = dC/dY
+  readonly autonomousConsumption: number;
+  readonly marginalPropensityToConsume: number;
   readonly rSquared: number;
 }
+

@@ -14,5 +14,6 @@ export * from "./integration/SimpsonsIntegrator.js";
 
 export * from "./solvers/NewtonRaphsonSolver.js";
 export * from "./solvers/BisectionSolver.js";
+export * from "./solvers/TridiagonalSolver.js";
 
 export * from "./regression/ConsumptionRegressor.js";
