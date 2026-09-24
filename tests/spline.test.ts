@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  CubicSplineLorenzCurve,
-  PchipLorenzCurve,
-  QuantileDataset
-} from "../src/index.js";
+import { CubicSplineLorenzCurve, PchipLorenzCurve, QuantileDataset } from "../src/index.js";
 
 describe("CubicSplineLorenzCurve and PchipLorenzCurve", () => {
   const sampleCensusDataset: QuantileDataset = {

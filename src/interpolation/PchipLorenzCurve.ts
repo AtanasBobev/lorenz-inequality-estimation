@@ -130,11 +130,7 @@ export class PchipLorenzCurve extends LorenzModel {
     const clampedP = this.clampPopulation(p);
     const i = this.findKnotInterval(clampedP);
     const dx = clampedP - this.points[i].populationShare;
-    return (
-      this.bCoeffs[i] +
-      2 * this.cCoeffs[i] * dx +
-      3 * this.dCoeffs[i] * dx * dx
-    );
+    return this.bCoeffs[i] + 2 * this.cCoeffs[i] * dx + 3 * this.dCoeffs[i] * dx * dx;
   }
 
   public secondDerivative(p: number): number {

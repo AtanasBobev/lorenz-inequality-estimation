@@ -108,10 +108,14 @@ export abstract class LorenzModel {
     const last = dataset.points[dataset.points.length - 1];
 
     if (Math.abs(first.populationShare) > 1e-9 || Math.abs(first.incomeShare) > 1e-9) {
-      throw new Error(`First knot must start at (0, 0), received (${first.populationShare}, ${first.incomeShare}).`);
+      throw new Error(
+        `First knot must start at (0, 0), received (${first.populationShare}, ${first.incomeShare}).`
+      );
     }
     if (Math.abs(last.populationShare - 1) > 1e-9 || Math.abs(last.incomeShare - 1) > 1e-9) {
-      throw new Error(`Last knot must end at (1, 1), received (${last.populationShare}, ${last.incomeShare}).`);
+      throw new Error(
+        `Last knot must end at (1, 1), received (${last.populationShare}, ${last.incomeShare}).`
+      );
     }
 
     for (let i = 1; i < dataset.points.length; i++) {
@@ -131,4 +135,3 @@ export abstract class LorenzModel {
     }
   }
 }
-
