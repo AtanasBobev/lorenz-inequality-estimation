@@ -4,9 +4,14 @@
   "description": "Numerical estimation of economic inequality and continuous Lorenz curve reconstruction from discrete quantiles",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -20,7 +25,11 @@
   "author": "Atanas Bobev",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.9",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.70.1",
     "vitest": "^2.1.0"
   }
 }

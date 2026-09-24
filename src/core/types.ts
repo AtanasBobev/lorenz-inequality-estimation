@@ -40,4 +40,3 @@ export interface ConsumptionResult {
   readonly marginalPropensityToConsume: number;
   readonly rSquared: number;
 }
-
