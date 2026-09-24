@@ -18,10 +18,22 @@ export class BisectionSolver implements RootFinder {
     let fb = fn(b);
 
     if (Math.abs(fa) <= tolerance) {
-      return { root: a, populationPercentile: a, iterations: 0, converged: true, finalError: Math.abs(fa) };
+      return {
+        root: a,
+        populationPercentile: a,
+        iterations: 0,
+        converged: true,
+        finalError: Math.abs(fa)
+      };
     }
     if (Math.abs(fb) <= tolerance) {
-      return { root: b, populationPercentile: b, iterations: 0, converged: true, finalError: Math.abs(fb) };
+      return {
+        root: b,
+        populationPercentile: b,
+        iterations: 0,
+        converged: true,
+        finalError: Math.abs(fb)
+      };
     }
 
     if (fa * fb > 0) {
