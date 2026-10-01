@@ -9,6 +9,9 @@ export * from "./core/InequalityEngine.js";
 export * from "./interpolation/PchipLorenzCurve.js";
 export * from "./interpolation/CubicSplineLorenzCurve.js";
 
+export * from "./tail/ParetoLorenzCurve.js";
+export * from "./tail/HybridLorenzCurve.js";
+
 export * from "./integration/TrapezoidalIntegrator.js";
 export * from "./integration/SimpsonsIntegrator.js";
 

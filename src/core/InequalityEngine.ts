@@ -3,7 +3,6 @@ import { NumericalIntegrator } from "./NumericalIntegrator.js";
 import { RootFinder } from "./RootFinder.js";
 import { GiniResult, WelfareResult } from "./types.js";
 
-// Orchestrates inequality metrics by coordinating interpolation, integration, and root-finding
 export class InequalityEngine {
   private model: LorenzModel;
   private integrator: NumericalIntegrator;
@@ -16,23 +15,31 @@ export class InequalityEngine {
   }
 
   public computeGini(stepCount: number = 100): GiniResult {
-    // Placeholder - to be implemented
-    throw new Error("Method not implemented yet.");
+    return this.integrator.integrate(this.model, 0, 1, stepCount);
   }
 
   public computeSenWelfare(stepCount: number = 100): WelfareResult {
-    // Placeholder - to be implemented
-    throw new Error("Method not implemented yet.");
+    const gini = this.computeGini(stepCount);
+    const meanIncome = this.model.getDataset().meanIncome;
+    const senWelfareIndex = meanIncome * (1 - gini.giniIndex);
+
+    return {
+      senWelfareIndex,
+      meanIncome,
+      giniIndex: gini.giniIndex
+    };
   }
 
   public findPercentileHoldingShare(targetShare: number): number {
-    // Placeholder - to be implemented
-    throw new Error("Method not implemented yet.");
+    if (targetShare < 0 || targetShare > 1) {
+      throw new Error(`Target income share must be in [0, 1], received ${targetShare}.`);
+    }
+    const result = this.rootFinder.findRoot(this.model, targetShare, 0, 1, 1e-7);
+    return result.root;
   }
 
   public getIncomeAtPercentile(p: number): number {
-    // Placeholder - to be implemented
-    throw new Error("Method not implemented yet.");
+    return this.model.quantileIncome(p);
   }
 
   public setIntegrator(integrator: NumericalIntegrator): void {
@@ -41,5 +48,21 @@ export class InequalityEngine {
 
   public setRootFinder(rootFinder: RootFinder): void {
     this.rootFinder = rootFinder;
+  }
+
+  public setModel(model: LorenzModel): void {
+    this.model = model;
+  }
+
+  public getModel(): LorenzModel {
+    return this.model;
+  }
+
+  public getIntegrator(): NumericalIntegrator {
+    return this.integrator;
+  }
+
+  public getRootFinder(): RootFinder {
+    return this.rootFinder;
   }
 }
