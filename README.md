@@ -52,6 +52,14 @@ Run static type checking with strict compiler options:
 npm run typecheck
 ```
 
+## Running Performance Benchmarks
+
+Run the 10,000-iteration execution latency benchmarks across quantile tiers:
+
+```bash
+npm run benchmark
+```
+
 ## Project Architecture
 
 ```
@@ -71,10 +79,14 @@ src/
 ├── integration/
 │   ├── SimpsonsIntegrator.ts    # Composite Simpson's 1/3 rule with parity enforcement
 │   └── TrapezoidalIntegrator.ts # Linear trapezoidal quadrature
-└── solvers/
-    ├── TridiagonalSolver.ts  # O(N) Thomas algorithm LU decomposition
-    ├── NewtonRaphsonSolver.ts # 1D quadratic root finding for headcount inversion
-    └── BisectionSolver.ts    # Robust interval bracketing
+├── solvers/
+│   ├── TridiagonalSolver.ts  # O(N) Thomas algorithm LU decomposition
+│   ├── NewtonRaphsonSolver.ts # 1D quadratic root finding for headcount inversion
+│   └── BisectionSolver.ts    # Robust interval bracketing
+├── data/
+│   └── censusDatasets.ts     # Authentic census deciles (Bulgarian NSI, Eurostat, US CPS)
+└── simulation/
+    └── syntheticDistributions.ts # Analytical distributions (Log-Normal, Singh-Maddala, Dagum)
 ```
 
 ## Academic Context
