@@ -20,3 +20,6 @@ export * from "./solvers/BisectionSolver.js";
 export * from "./solvers/TridiagonalSolver.js";
 
 export * from "./regression/ConsumptionRegressor.js";
+
+export * from "./data/censusDatasets.js";
+export * from "./simulation/syntheticDistributions.js";

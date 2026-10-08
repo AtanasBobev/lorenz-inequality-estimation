@@ -40,3 +40,23 @@ export interface ConsumptionResult {
   readonly marginalPropensityToConsume: number;
   readonly rSquared: number;
 }
+
+export interface GastwirthCertificate {
+  readonly lowerBound: number;
+  readonly upperBound: number;
+  readonly intervalWidth: number;
+  readonly estimatedGini: number;
+  readonly isCertified: boolean;
+  readonly maxError: number;
+}
+
+export interface InequalityMetrics {
+  readonly giniIndex: number;
+  readonly senWelfareIndex: number;
+  readonly palmaRatio: number;
+  readonly areaUnderCurve: number;
+  readonly meanIncome: number;
+  readonly povertyHeadcount?: number;
+  readonly povertyLine?: number;
+  readonly gastwirthCertificate: GastwirthCertificate;
+}
