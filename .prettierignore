@@ -5,3 +5,4 @@ docs
 *.png
 *.pdf
 package-lock.json
+demo/app.js

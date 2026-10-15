@@ -19,6 +19,15 @@ export default tseslint.config(
     }
   },
   {
-    ignores: ["dist/", "node_modules/", "docs/", "coverage/", "*.docx", "*.png", "*.pdf"]
+    ignores: [
+      "dist/",
+      "node_modules/",
+      "docs/",
+      "coverage/",
+      "*.docx",
+      "*.png",
+      "*.pdf",
+      "demo/app.js"
+    ]
   }
 );

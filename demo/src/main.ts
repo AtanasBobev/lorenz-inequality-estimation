@@ -1,5 +1,5 @@
-import { BULGARIAN_NSI_2022, HybridLorenzCurve } from "../../src/index.js";
-import { AppState } from "./types.js";
+import { HybridLorenzCurve } from "../../src/index.js";
+import { AppState, ModelType } from "./types.js";
 import { loadPreset } from "./presets.js";
 import { evaluateInequality } from "./engineBridge.js";
 import { renderLorenzChart } from "./charts/lorenzChart.js";
@@ -153,7 +153,7 @@ function recompute(): void {
 
     renderLorenzChart(canvasLorenz, state);
     renderDerivativeChart(canvasDerivative, state);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Recompute error:", err);
     if (badgeStatus) {
       badgeStatus.className = "badge badge-secondary";
@@ -222,64 +222,102 @@ function updateTable(): void {
   );
 }
 
+function syncSplicingThreshold(val: number): void {
+  const clamped = Math.max(0.6, Math.min(0.95, isNaN(val) ? 0.8 : val));
+  state.splicingThreshold = clamped;
+  const formatted = clamped.toFixed(2);
+  if (rangeSplice) {
+    rangeSplice.value = formatted;
+    rangeSplice.setAttribute("value", formatted);
+  }
+  if (numSplice) {
+    numSplice.value = formatted;
+    numSplice.setAttribute("value", formatted);
+  }
+  recompute();
+}
+
+function applyPreset(key: string): void {
+  const loaded = loadPreset(key);
+  state.dataset = {
+    meanIncome: loaded.dataset.meanIncome,
+    points: loaded.dataset.points.map((pt) => ({ ...pt }))
+  };
+  state.povertyLine = loaded.poverty;
+  state.currency = loaded.currency;
+
+  const meanVal = String(Math.round(state.dataset.meanIncome || 10000));
+  const povVal = String(Math.round(state.povertyLine));
+
+  if (inputMeanIncome) {
+    inputMeanIncome.value = meanVal;
+    inputMeanIncome.setAttribute("value", meanVal);
+  }
+  if (inputPoverty) {
+    inputPoverty.value = povVal;
+    inputPoverty.setAttribute("value", povVal);
+  }
+  if (labelCurrency) labelCurrency.textContent = state.currency;
+  if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
+
+  updateTable();
+  recompute();
+}
+
 // Event Bindings
 if (selectPreset) {
-  selectPreset.addEventListener("change", (e: Event) => {
-    const key = (e.target as HTMLSelectElement).value;
-    const loaded = loadPreset(key);
-    state.dataset = loaded.dataset;
-    state.povertyLine = loaded.poverty;
-    state.currency = loaded.currency;
-
-    if (inputPoverty) inputPoverty.value = String(Math.round(state.povertyLine));
-    if (inputMeanIncome)
-      inputMeanIncome.value = String(Math.round(state.dataset.meanIncome || 10000));
-    if (labelCurrency) labelCurrency.textContent = state.currency;
-    if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
-
-    updateTable();
-    recompute();
-  });
+  const onPreset = () => applyPreset(selectPreset.value);
+  selectPreset.addEventListener("change", onPreset);
+  selectPreset.addEventListener("input", onPreset);
 }
 
 if (selectModelType) {
   selectModelType.addEventListener("change", (e: Event) => {
-    state.modelType = (e.target as HTMLSelectElement).value as any;
+    state.modelType = (e.target as HTMLSelectElement).value as ModelType;
     recompute();
   });
 }
 
-if (rangeSplice && numSplice) {
+if (rangeSplice) {
   rangeSplice.addEventListener("input", (e: Event) => {
-    state.splicingThreshold = parseFloat((e.target as HTMLInputElement).value);
-    numSplice.value = state.splicingThreshold.toFixed(2);
-    recompute();
+    const val = parseFloat((e.target as HTMLInputElement).value);
+    syncSplicingThreshold(val);
   });
+  rangeSplice.addEventListener("change", (e: Event) => {
+    const val = parseFloat((e.target as HTMLInputElement).value);
+    syncSplicingThreshold(val);
+  });
+}
 
+if (numSplice) {
   numSplice.addEventListener("input", (e: Event) => {
     const val = parseFloat((e.target as HTMLInputElement).value);
-    if (!isNaN(val)) {
-      state.splicingThreshold = Math.max(0.5, Math.min(0.98, val));
-      rangeSplice.value = String(state.splicingThreshold);
-      recompute();
-    }
+    if (!isNaN(val)) syncSplicingThreshold(val);
+  });
+  numSplice.addEventListener("change", (e: Event) => {
+    const val = parseFloat((e.target as HTMLInputElement).value);
+    if (!isNaN(val)) syncSplicingThreshold(val);
   });
 }
 
 if (inputPoverty) {
-  inputPoverty.addEventListener("input", (e: Event) => {
+  const onPoverty = (e: Event) => {
     const val = parseFloat((e.target as HTMLInputElement).value);
     state.povertyLine = isNaN(val) ? 0 : val;
     recompute();
-  });
+  };
+  inputPoverty.addEventListener("input", onPoverty);
+  inputPoverty.addEventListener("change", onPoverty);
 }
 
 if (inputMeanIncome) {
-  inputMeanIncome.addEventListener("input", (e: Event) => {
+  const onMean = (e: Event) => {
     const val = parseFloat((e.target as HTMLInputElement).value);
     state.dataset.meanIncome = isNaN(val) ? 0 : val;
     recompute();
-  });
+  };
+  inputMeanIncome.addEventListener("input", onMean);
+  inputMeanIncome.addEventListener("change", onMean);
 }
 
 if (btnAddRow) {
@@ -348,21 +386,23 @@ window.addEventListener("resize", () => {
 });
 
 // Boot initialization
-if (inputMeanIncome) inputMeanIncome.value = String(Math.round(state.dataset.meanIncome || 10000));
-if (inputPoverty) inputPoverty.value = String(Math.round(state.povertyLine));
-if (numSplice) numSplice.value = state.splicingThreshold.toFixed(2);
-if (labelCurrency) labelCurrency.textContent = state.currency;
-if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
-
-updateTable();
-recompute();
+if (selectPreset && selectPreset.value) {
+  applyPreset(selectPreset.value);
+} else {
+  applyPreset("bg_nsi_2022");
+}
+syncSplicingThreshold(state.splicingThreshold);
 
 if (typeof document !== "undefined") {
+  const initUI = () => {
+    if (selectPreset && selectPreset.value) {
+      applyPreset(selectPreset.value);
+    }
+    syncSplicingThreshold(state.splicingThreshold);
+  };
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      recompute();
-    });
+    document.addEventListener("DOMContentLoaded", initUI);
   } else {
-    setTimeout(() => recompute(), 60);
+    setTimeout(initUI, 30);
   }
 }

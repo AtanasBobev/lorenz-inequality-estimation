@@ -191,7 +191,7 @@ export function autoRepairQuantiles(points: QuantilePoint[]): QuantilePoint[] {
   }
 
   // Extract interior knots
-  let interior = points
+  const interior = points
     .filter((pt, idx) => idx > 0 && idx < points.length - 1)
     .map((pt) => ({
       populationShare: Math.min(
@@ -214,7 +214,7 @@ export function autoRepairQuantiles(points: QuantilePoint[]): QuantilePoint[] {
     if (p <= prevP) {
       p = Math.min(0.98, prevP + 0.02);
     }
-    let L = Math.min(p, Math.max(prevL, pt.incomeShare));
+    const L = Math.min(p, Math.max(prevL, pt.incomeShare));
 
     cleaned.push({ populationShare: p, incomeShare: L });
     prevP = p;

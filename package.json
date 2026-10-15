@@ -47,12 +47,14 @@
     "build": "tsc",
     "build:demo": "esbuild demo/src/main.ts --bundle --format=iife --outfile=demo/app.js",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests",
-    "lint:fix": "eslint src tests --fix",
+    "lint": "eslint src tests demo/src",
+    "lint:fix": "eslint src tests demo/src --fix",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "precommit": "npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "check:ci": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
     "benchmark": "tsc benchmarks/runBenchmarks.ts --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --outDir dist/benchmarks && node dist/benchmarks/benchmarks/runBenchmarks.js"
   },
   "keywords": [
