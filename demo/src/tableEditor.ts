@@ -38,8 +38,8 @@ export function renderTable(
     const lockBadge = isFirst
       ? `<span class="badge badge-secondary" title="Anchor (0, 0)">0.000</span>`
       : isLast
-      ? `<span class="badge badge-secondary" title="Anchor (1, 1)">1.000</span>`
-      : "";
+        ? `<span class="badge badge-secondary" title="Anchor (1, 1)">1.000</span>`
+        : "";
 
     tr.innerHTML = `
       <td class="text-muted text-center py-1" style="width: 32px; font-size: 0.75rem;">${index + 1}</td>

@@ -144,7 +144,12 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
   }
 
   // Poverty headcount marker
-  if (state.currentHeadcount > 0 && state.currentHeadcount < 1 && state.currentModel && state.validation.isValid) {
+  if (
+    state.currentHeadcount > 0 &&
+    state.currentHeadcount < 1 &&
+    state.currentModel &&
+    state.validation.isValid
+  ) {
     const hP = state.currentHeadcount;
     const hL = state.currentModel.evaluate(hP);
     const xH = toX(hP);

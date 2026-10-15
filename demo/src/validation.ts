@@ -194,7 +194,10 @@ export function autoRepairQuantiles(points: QuantilePoint[]): QuantilePoint[] {
   let interior = points
     .filter((pt, idx) => idx > 0 && idx < points.length - 1)
     .map((pt) => ({
-      populationShare: Math.min(0.99, Math.max(0.01, isNaN(pt.populationShare) ? 0.5 : pt.populationShare)),
+      populationShare: Math.min(
+        0.99,
+        Math.max(0.01, isNaN(pt.populationShare) ? 0.5 : pt.populationShare)
+      ),
       incomeShare: Math.min(1.0, Math.max(0.0, isNaN(pt.incomeShare) ? 0.25 : pt.incomeShare))
     }));
 

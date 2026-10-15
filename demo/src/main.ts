@@ -145,7 +145,9 @@ function recompute(): void {
 
     if (badgeStatus) {
       badgeStatus.className = "badge badge-dark";
-      badgeStatus.textContent = state.currentGastwirth.isCertified ? "Certified [G_L, G_U]" : "Verified";
+      badgeStatus.textContent = state.currentGastwirth.isCertified
+        ? "Certified [G_L, G_U]"
+        : "Verified";
     }
 
     renderLorenzChart(canvasLorenz, state);
@@ -229,7 +231,8 @@ if (selectPreset) {
     state.currency = loaded.currency;
 
     if (inputPoverty) inputPoverty.value = String(Math.round(state.povertyLine));
-    if (inputMeanIncome) inputMeanIncome.value = String(Math.round(state.dataset.meanIncome || 10000));
+    if (inputMeanIncome)
+      inputMeanIncome.value = String(Math.round(state.dataset.meanIncome || 10000));
     if (labelCurrency) labelCurrency.textContent = state.currency;
 
     updateTable();
@@ -323,15 +326,19 @@ if (btnApplyPaste && txtRawInput) {
   });
 }
 
-setupFileInput(fileInput, () => state.dataset.meanIncome || 10000, (res) => {
-  if (res.success && res.dataset) {
-    state.dataset = res.dataset;
-    updateTable();
-    recompute();
-  } else {
-    alert("File error: " + (res.errorMessage || "Could not read data."));
+setupFileInput(
+  fileInput,
+  () => state.dataset.meanIncome || 10000,
+  (res) => {
+    if (res.success && res.dataset) {
+      state.dataset = res.dataset;
+      updateTable();
+      recompute();
+    } else {
+      alert("File error: " + (res.errorMessage || "Could not read data."));
+    }
   }
-});
+);
 
 window.addEventListener("resize", () => {
   renderLorenzChart(canvasLorenz, state);

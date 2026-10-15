@@ -15,14 +15,14 @@
           <span class="badge badge-outline">TypeScript / PCHIP-Pareto</span>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <span class="text-muted" style="font-size: 0.8rem;">Status:</span>
+          <span class="text-muted" style="font-size: 0.8rem">Status:</span>
           <span id="badgeStatus" class="badge badge-dark">Ready</span>
         </div>
       </div>
     </nav>
 
     <div class="container-fluid app-layout">
-      <div id="alertContainer" class="alert alert-dark mb-3" style="display: none;" role="alert">
+      <div id="alertContainer" class="alert alert-dark mb-3" style="display: none" role="alert">
         <div class="d-flex justify-content-between align-items-start">
           <div id="alertContent" class="alert-content"></div>
           <button id="btnAutoRepair" class="btn btn-sm btn-dark ms-3 text-nowrap">
@@ -36,7 +36,11 @@
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span>Quantile Data Ingestion</span>
-              <button id="btnTogglePaste" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;">
+              <button
+                id="btnTogglePaste"
+                class="btn btn-sm btn-outline-secondary"
+                style="font-size: 0.75rem; padding: 0.25rem 0.65rem"
+              >
                 Paste Raw Text
               </button>
             </div>
@@ -54,8 +58,8 @@
                 </select>
               </div>
 
-              <div id="boxPasteArea" class="mb-3 p-2 bg-light border rounded" style="display: none;">
-                <label for="txtRawInput" class="form-label mb-1" style="font-size: 0.78rem;">
+              <div id="boxPasteArea" class="mb-3 p-2 bg-light border rounded" style="display: none">
+                <label for="txtRawInput" class="form-label mb-1" style="font-size: 0.78rem">
                   Paste comma/tab/space delimited pairs (p, L):
                 </label>
                 <textarea
@@ -63,31 +67,40 @@
                   class="form-control font-monospace mb-2"
                   rows="4"
                   placeholder="0.0, 0.0&#10;0.2, 0.059&#10;0.4, 0.174&#10;0.6, 0.342&#10;0.8, 0.580&#10;1.0, 1.0"
-                  style="font-size: 0.75rem;"
+                  style="font-size: 0.75rem"
                 ></textarea>
                 <div class="d-flex justify-content-end">
-                  <button id="btnApplyPaste" class="btn btn-sm btn-dark py-1 px-3">Apply Parsed Knots</button>
+                  <button id="btnApplyPaste" class="btn btn-sm btn-dark py-1 px-3">
+                    Apply Parsed Knots
+                  </button>
                 </div>
               </div>
 
               <div class="mb-3">
                 <label for="fileInput" class="form-label">Upload File (.csv, .tsv, .json)</label>
-                <input type="file" id="fileInput" class="form-control form-control-sm" accept=".csv,.tsv,.json,.txt" />
+                <input
+                  type="file"
+                  id="fileInput"
+                  class="form-control form-control-sm"
+                  accept=".csv,.tsv,.json,.txt"
+                />
               </div>
 
               <div class="mb-2">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                   <label class="form-label mb-0">Discrete Quantile Knots</label>
-                  <span class="text-muted" style="font-size: 0.75rem;">Anchors (0,0) and (1,1) locked</span>
+                  <span class="text-muted" style="font-size: 0.75rem"
+                    >Anchors (0,0) and (1,1) locked</span
+                  >
                 </div>
                 <div class="table-responsive knot-table-wrap">
                   <table class="table table-sm table-bordered table-hover align-middle mb-0">
                     <thead class="table-light">
                       <tr>
-                        <th style="width: 32px;" class="text-center">#</th>
+                        <th style="width: 32px" class="text-center">#</th>
                         <th>Pop Share (p)</th>
                         <th>Income Share (L)</th>
-                        <th style="width: 38px;"></th>
+                        <th style="width: 38px"></th>
                       </tr>
                     </thead>
                     <tbody id="quantilesTableBody"></tbody>
@@ -115,21 +128,36 @@
                   <option value="pchip">Monotone PCHIP Spline (Cone Projected)</option>
                   <option value="cubicspline">Natural Cubic Spline (C2 Continuous)</option>
                 </select>
-                <div id="modelDescription" class="form-text mt-1 text-muted" style="font-size: 0.75rem;"></div>
+                <div
+                  id="modelDescription"
+                  class="form-text mt-1 text-muted"
+                  style="font-size: 0.75rem"
+                ></div>
               </div>
 
-              <div class="mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                  <label for="rangeSplice" class="form-label mb-0">Pareto Tail Splicing Knot (p*)</label>
-                  <div class="input-group input-group-sm" style="width: 80px;">
+              <div class="mb-3 splice-control-box">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label for="rangeSplice" class="form-label mb-0"
+                    >Pareto Tail Splicing Knot (p*)</label
+                  >
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted" style="font-size: 0.75rem; font-weight: 500"
+                      >p* =</span
+                    >
                     <input
                       type="number"
                       id="numSplice"
-                      class="form-control form-control-sm text-center py-0"
+                      class="form-control form-control-sm text-center font-monospace"
                       min="0.50"
                       max="0.98"
                       step="0.01"
                       value="0.80"
+                      style="
+                        width: 70px;
+                        padding: 0.2rem 0.4rem;
+                        font-weight: 600;
+                        font-size: 0.8125rem;
+                      "
                     />
                   </div>
                 </div>
@@ -142,7 +170,7 @@
                   step="0.01"
                   value="0.80"
                 />
-                <div class="d-flex justify-content-between text-muted" style="font-size: 0.7rem;">
+                <div class="d-flex justify-content-between text-muted splice-ticks">
                   <span>0.60 (Coarse)</span>
                   <span>0.80 (Default Decile)</span>
                   <span>0.95 (Extreme Top)</span>
@@ -153,18 +181,34 @@
                 <label for="inputMeanIncome" class="form-label">Mean Population Income (μ)</label>
                 <div class="input-group input-group-sm">
                   <span id="labelCurrency" class="input-group-text font-monospace">EUR</span>
-                  <input type="number" id="inputMeanIncome" class="form-control" value="5032" min="1" step="10" />
+                  <input
+                    type="number"
+                    id="inputMeanIncome"
+                    class="form-control"
+                    value="5032"
+                    min="1"
+                    step="10"
+                  />
                 </div>
-                <div class="form-text text-muted" style="font-size: 0.72rem;">Required to scale marginal income y(p) = μ · L'(p).</div>
+                <div class="form-text text-muted" style="font-size: 0.72rem">
+                  Required to scale marginal income y(p) = μ · L'(p).
+                </div>
               </div>
 
               <div class="mb-0">
                 <label for="inputPoverty" class="form-label">Absolute Poverty Line (z)</label>
                 <div class="input-group input-group-sm">
                   <span class="input-group-text font-monospace">z</span>
-                  <input type="number" id="inputPoverty" class="form-control" value="3092" min="1" step="10" />
+                  <input
+                    type="number"
+                    id="inputPoverty"
+                    class="form-control"
+                    value="3092"
+                    min="1"
+                    step="10"
+                  />
                 </div>
-                <div class="form-text text-muted" style="font-size: 0.72rem;">
+                <div class="form-text text-muted" style="font-size: 0.72rem">
                   Root-finding solver inverts y(H) = μ · L'(H) = z to extract headcount H.
                 </div>
               </div>
@@ -176,7 +220,9 @@
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span>Reconstructed Macroeconomic Indicators</span>
-              <span class="text-muted" style="font-size: 0.75rem;">Simpson Quadrature (N=200)</span>
+              <span class="badge badge-secondary" style="font-size: 0.7rem"
+                >Simpson Quadrature (N=200)</span
+              >
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -209,19 +255,33 @@
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span>Lorenz Curve & Gastwirth Bounding Envelope</span>
-              <span class="badge badge-secondary" style="font-size: 0.7rem;">Cumulative Income Distribution</span>
+              <span class="badge badge-secondary" style="font-size: 0.7rem"
+                >Cumulative Income Distribution</span
+              >
             </div>
             <div class="card-body">
               <div class="canvas-wrapper lorenz-canvas-wrap">
                 <canvas id="canvasLorenz"></canvas>
               </div>
               <div class="legend-bar mt-2">
-                <div class="legend-item"><span class="legend-icon line-lorenz"></span> Lorenz Curve L(p)</div>
-                <div class="legend-item"><span class="legend-icon area-gastwirth"></span> Gastwirth Envelope</div>
-                <div class="legend-item"><span class="legend-icon line-equality"></span> Line of Equality (p=L)</div>
-                <div class="legend-item"><span class="legend-icon mark-splice"></span> Splice Knot (p*)</div>
-                <div class="legend-item"><span class="legend-icon mark-poverty"></span> Poverty Headcount (H)</div>
-                <div class="legend-item"><span class="legend-icon mark-knot"></span> Quantile Knots</div>
+                <div class="legend-item">
+                  <span class="legend-icon line-lorenz"></span> Lorenz Curve L(p)
+                </div>
+                <div class="legend-item">
+                  <span class="legend-icon area-gastwirth"></span> Gastwirth Envelope
+                </div>
+                <div class="legend-item">
+                  <span class="legend-icon line-equality"></span> Line of Equality (p=L)
+                </div>
+                <div class="legend-item">
+                  <span class="legend-icon mark-splice"></span> Splice Knot (p*)
+                </div>
+                <div class="legend-item">
+                  <span class="legend-icon mark-poverty"></span> Poverty Headcount (H)
+                </div>
+                <div class="legend-item">
+                  <span class="legend-icon mark-knot"></span> Quantile Knots
+                </div>
               </div>
             </div>
           </div>
@@ -229,28 +289,30 @@
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span>Normalized Marginal Income Gradient y(p) / μ = L'(p)</span>
-              <span class="badge badge-secondary" style="font-size: 0.7rem;">1D Hybrid Root Inversion</span>
+              <span class="badge badge-secondary" style="font-size: 0.7rem"
+                >1D Hybrid Root Inversion</span
+              >
             </div>
             <div class="card-body">
               <div class="canvas-wrapper deriv-canvas-wrap">
                 <canvas id="canvasDerivative"></canvas>
               </div>
               <div class="legend-bar mt-2">
-                <div class="legend-item"><span class="legend-icon line-deriv"></span> Marginal Income L'(p)</div>
-                <div class="legend-item"><span class="legend-icon line-thresh"></span> Normalized Threshold (z / μ)</div>
-                <div class="legend-item"><span class="legend-icon mark-root"></span> Solved Headcount Root H</div>
+                <div class="legend-item">
+                  <span class="legend-icon line-deriv"></span> Marginal Income L'(p)
+                </div>
+                <div class="legend-item">
+                  <span class="legend-icon line-thresh"></span> Normalized Threshold (z / μ)
+                </div>
+                <div class="legend-item">
+                  <span class="legend-icon mark-root"></span> Solved Headcount Root H
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-
-    <footer class="footer mt-4 py-3 bg-white border-top">
-      <div class="container-fluid text-center text-muted" style="font-size: 0.75rem;">
-        Senior Diploma Thesis in Computer Science &bull; Lorenz Inequality Estimation Engine &bull; Pure Client-Side TypeScript
-      </div>
-    </footer>
 
     <script src="./app.js"></script>
   </body>
