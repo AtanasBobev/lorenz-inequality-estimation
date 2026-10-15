@@ -12,7 +12,7 @@ import {
   autoRepairQuantiles
 } from "./validation.js";
 
-// Central Application Reactive State
+// State
 const initialPreset = loadPreset("bg_nsi_2022");
 
 const state: AppState = {

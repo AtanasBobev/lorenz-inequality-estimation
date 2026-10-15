@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <!-- Bootstrap-Style Navbar -->
     <nav class="navbar">
       <div class="container-fluid d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
@@ -22,9 +21,7 @@
       </div>
     </nav>
 
-    <!-- Main Container Grid -->
     <div class="container-fluid app-layout">
-      <!-- Validation & Notice Alert Container -->
       <div id="alertContainer" class="alert alert-dark mb-3" style="display: none;" role="alert">
         <div class="d-flex justify-content-between align-items-start">
           <div id="alertContent" class="alert-content"></div>
@@ -35,9 +32,7 @@
       </div>
 
       <div class="row g-3">
-        <!-- Left Column: Controls & Data Ingestion (4 cols) -->
         <div class="col-left">
-          <!-- Card 1: Data Ingestion & Knot Editor -->
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span>Quantile Data Ingestion</span>
@@ -46,7 +41,6 @@
               </button>
             </div>
             <div class="card-body">
-              <!-- Preset Selector -->
               <div class="mb-3">
                 <label for="selectPreset" class="form-label">Benchmark Dataset</label>
                 <select id="selectPreset" class="form-select">
@@ -60,7 +54,6 @@
                 </select>
               </div>
 
-              <!-- Raw Text Paste Box (Collapsible) -->
               <div id="boxPasteArea" class="mb-3 p-2 bg-light border rounded" style="display: none;">
                 <label for="txtRawInput" class="form-label mb-1" style="font-size: 0.78rem;">
                   Paste comma/tab/space delimited pairs (p, L):
@@ -77,13 +70,11 @@
                 </div>
               </div>
 
-              <!-- File Upload -->
               <div class="mb-3">
                 <label for="fileInput" class="form-label">Upload File (.csv, .tsv, .json)</label>
                 <input type="file" id="fileInput" class="form-control form-control-sm" accept=".csv,.tsv,.json,.txt" />
               </div>
 
-              <!-- Quantile Knots Table -->
               <div class="mb-2">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                   <label class="form-label mb-0">Discrete Quantile Knots</label>
@@ -104,7 +95,6 @@
                 </div>
               </div>
 
-              <!-- Add Knot Button -->
               <div class="d-flex justify-content-between align-items-center mt-2">
                 <button id="btnAddRow" class="btn btn-sm btn-outline-dark">
                   + Add Interpolation Knot
@@ -113,13 +103,11 @@
             </div>
           </div>
 
-          <!-- Card 2: Model & Economic Parameters -->
           <div class="card mb-3">
             <div class="card-header">
               <span>Estimation & Macroeconomic Parameters</span>
             </div>
             <div class="card-body">
-              <!-- Interpolation Model -->
               <div class="mb-3">
                 <label for="selectModelType" class="form-label">Interpolation Framework</label>
                 <select id="selectModelType" class="form-select">
@@ -130,7 +118,6 @@
                 <div id="modelDescription" class="form-text mt-1 text-muted" style="font-size: 0.75rem;"></div>
               </div>
 
-              <!-- Pareto Splicing Point Slider + Input -->
               <div class="mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                   <label for="rangeSplice" class="form-label mb-0">Pareto Tail Splicing Knot (p*)</label>
@@ -162,7 +149,6 @@
                 </div>
               </div>
 
-              <!-- Mean Income -->
               <div class="mb-3">
                 <label for="inputMeanIncome" class="form-label">Mean Population Income (μ)</label>
                 <div class="input-group input-group-sm">
@@ -172,7 +158,6 @@
                 <div class="form-text text-muted" style="font-size: 0.72rem;">Required to scale marginal income y(p) = μ · L'(p).</div>
               </div>
 
-              <!-- Poverty Line -->
               <div class="mb-0">
                 <label for="inputPoverty" class="form-label">Absolute Poverty Line (z)</label>
                 <div class="input-group input-group-sm">
@@ -187,9 +172,7 @@
           </div>
         </div>
 
-        <!-- Right Column: Outputs, Visualizations & Metrics (8 cols) -->
         <div class="col-right">
-          <!-- Summary Metrics Card -->
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span>Reconstructed Macroeconomic Indicators</span>
@@ -223,7 +206,6 @@
             </div>
           </div>
 
-          <!-- Chart 1: Lorenz Curve & Gastwirth Envelope -->
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span>Lorenz Curve & Gastwirth Bounding Envelope</span>
@@ -233,7 +215,6 @@
               <div class="canvas-wrapper lorenz-canvas-wrap">
                 <canvas id="canvasLorenz"></canvas>
               </div>
-              <!-- Monochrome Legend -->
               <div class="legend-bar mt-2">
                 <div class="legend-item"><span class="legend-icon line-lorenz"></span> Lorenz Curve L(p)</div>
                 <div class="legend-item"><span class="legend-icon area-gastwirth"></span> Gastwirth Envelope</div>
@@ -245,7 +226,6 @@
             </div>
           </div>
 
-          <!-- Chart 2: Marginal Income Derivative & Root Inversion -->
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span>Normalized Marginal Income Gradient y(p) / μ = L'(p)</span>
@@ -255,7 +235,6 @@
               <div class="canvas-wrapper deriv-canvas-wrap">
                 <canvas id="canvasDerivative"></canvas>
               </div>
-              <!-- Monochrome Legend -->
               <div class="legend-bar mt-2">
                 <div class="legend-item"><span class="legend-icon line-deriv"></span> Marginal Income L'(p)</div>
                 <div class="legend-item"><span class="legend-icon line-thresh"></span> Normalized Threshold (z / μ)</div>

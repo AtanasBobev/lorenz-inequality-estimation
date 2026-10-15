@@ -55,7 +55,7 @@ export function renderDerivativeChart(canvas: HTMLCanvasElement | null, state: A
     ctx.textAlign = "center";
   }
 
-  // Axis Labels
+  // Axis labels
   ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   ctx.fillStyle = "#212529";
   ctx.fillText("Population share (p)", pad.left + plotW / 2, h - 8);
@@ -66,7 +66,7 @@ export function renderDerivativeChart(canvas: HTMLCanvasElement | null, state: A
   ctx.fillText("y(p) / μ", 0, 0);
   ctx.restore();
 
-  // Marginal Income Derivative Curve L'(p) (Solid Deep Charcoal)
+  // Marginal income derivative curve
   if (state.currentModel && state.validation.isValid) {
     ctx.strokeStyle = "#111827";
     ctx.lineWidth = 2.2;

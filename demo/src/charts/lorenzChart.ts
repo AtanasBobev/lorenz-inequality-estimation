@@ -24,7 +24,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
   const toX = (p: number) => pad.left + p * plotW;
   const toY = (L: number) => pad.top + (1 - L) * plotH;
 
-  // Grid lines (subtle monochrome)
+  // Grid lines
   ctx.strokeStyle = "#e9ecef";
   ctx.lineWidth = 1;
   ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
@@ -52,7 +52,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.textAlign = "center";
   }
 
-  // Axis Labels
+  // Axis labels
   ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   ctx.fillStyle = "#212529";
   ctx.fillText("Cumulative population share (p)", pad.left + plotW / 2, h - 10);
@@ -63,7 +63,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
   ctx.fillText("Cumulative income share L(p)", 0, 0);
   ctx.restore();
 
-  // Shaded Gastwirth Bounding Envelope (subtle neutral fill)
+  // Gastwirth bounding envelope
   const pts = state.dataset.points;
   if (pts.length >= 2) {
     ctx.beginPath();
@@ -77,7 +77,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
     ctx.fill();
 
-    // Boundary stroke of Gastwirth lower bound (secant chords)
+    // Gastwirth lower bound chords
     ctx.strokeStyle = "#adb5bd";
     ctx.lineWidth = 1.0;
     ctx.setLineDash([2, 3]);
@@ -85,7 +85,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.setLineDash([]);
   }
 
-  // Line of Perfect Equality (45-degree reference)
+  // Line of equality
   ctx.strokeStyle = "#adb5bd";
   ctx.setLineDash([4, 4]);
   ctx.lineWidth = 1.2;
@@ -95,7 +95,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Continuous Lorenz Curve (Solid Deep Black)
+  // Lorenz curve
   if (state.currentModel && state.validation.isValid) {
     ctx.strokeStyle = "#111827";
     ctx.lineWidth = 2.4;
@@ -112,7 +112,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.stroke();
   }
 
-  // Splicing Threshold marker (p*)
+  // Splicing threshold marker
   if (state.modelType === "hybrid" && state.currentModel && state.validation.isValid) {
     const pStar = state.splicingThreshold;
     const lStar = state.currentModel.evaluate(pStar);
@@ -128,7 +128,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Diamond marker for splicing point
+    // Splicing point marker
     const s = 5.5;
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "#212529";
@@ -143,7 +143,7 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.stroke();
   }
 
-  // Poverty Headcount marker (H)
+  // Poverty headcount marker
   if (state.currentHeadcount > 0 && state.currentHeadcount < 1 && state.currentModel && state.validation.isValid) {
     const hP = state.currentHeadcount;
     const hL = state.currentModel.evaluate(hP);
@@ -159,12 +159,12 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Cross square marker for headcount
+    // Headcount marker
     ctx.fillStyle = "#212529";
     ctx.fillRect(xH - 3.5, yH - 3.5, 7, 7);
   }
 
-  // Discrete Quantile Knots (Circles)
+  // Quantile knots
   for (const pt of pts) {
     const x = toX(pt.populationShare);
     const y = toY(pt.incomeShare);
