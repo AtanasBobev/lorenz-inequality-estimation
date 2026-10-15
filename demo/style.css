@@ -1,0 +1,289 @@
+/* Clean, Minimalist Academic Interface */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #1f2937;
+  background-color: #f9fafb;
+  line-height: 1.5;
+  padding-bottom: 2rem;
+}
+
+/* Header */
+.page-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.25rem 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header h1 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+.page-header .subtitle {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-top: 0.2rem;
+}
+
+/* Main Container Grid */
+.content-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 860px) {
+  .content-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Panels */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.section-block,
+.results-box,
+.chart-box {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1.2rem;
+}
+
+.section-block h2,
+.results-box h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Form Controls */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.35rem;
+}
+
+.form-select,
+.form-input {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #111827;
+}
+
+.form-select:focus,
+.form-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.form-file {
+  width: 100%;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.form-range {
+  width: 100%;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+/* Table Editor */
+.table-scroll {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.data-table th {
+  background-color: #f9fafb;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  font-weight: 600;
+  color: #4b5563;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+}
+
+.data-table td {
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.tbl-input {
+  width: 100%;
+  padding: 0.25rem 0.35rem;
+  font-size: 0.8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+}
+
+.btn-del {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 0.3rem;
+  line-height: 1;
+}
+
+.btn-del:hover {
+  color: #dc2626;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.btn-text:hover {
+  text-decoration: underline;
+}
+
+/* Summary Results Table */
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.summary-table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.summary-table td:nth-child(even) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  color: #111827;
+}
+
+.summary-table td:nth-child(odd) {
+  color: #4b5563;
+  font-size: 0.82rem;
+}
+
+/* Canvas Charts */
+.chart-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.75rem;
+}
+
+.canvas-wrap {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.lorenz-wrap {
+  height: 380px;
+}
+
+.deriv-wrap {
+  height: 220px;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Legend */
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.65rem;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.legend-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-color {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.line-lorenz { background-color: #1d4ed8; }
+.area-gastwirth { background-color: #c7d2fe; border: 1px solid #a5b4fc; }
+.line-equality { background-color: #9ca3af; }
+.pt-splice { background-color: #7c3aed; border-radius: 50%; }
+.pt-poverty { background-color: #dc2626; border-radius: 50%; }
+.pt-knot { background-color: #1e293b; border-radius: 50%; }
+
+.line-deriv { background-color: #059669; }
+.line-thresh { background-color: #dc2626; }
