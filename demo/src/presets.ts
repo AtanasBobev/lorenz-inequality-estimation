@@ -12,6 +12,7 @@ import {
 export interface PresetResult {
   dataset: QuantileDataset;
   poverty: number;
+  currency: string;
 }
 
 export function loadPreset(key: string): PresetResult {
@@ -22,7 +23,8 @@ export function loadPreset(key: string): PresetResult {
           meanIncome: BULGARIAN_NSI_2022.dataset.meanIncome,
           points: BULGARIAN_NSI_2022.dataset.points.map((pt) => ({ ...pt }))
         },
-        poverty: 6048
+        poverty: BULGARIAN_NSI_2022.metadata.povertyLine, // 3092 EUR
+        currency: "EUR"
       };
     case "bg_nsi_quintiles":
       return {
@@ -30,7 +32,8 @@ export function loadPreset(key: string): PresetResult {
           meanIncome: BULGARIAN_NSI_QUINTILES_2022.dataset.meanIncome,
           points: BULGARIAN_NSI_QUINTILES_2022.dataset.points.map((pt) => ({ ...pt }))
         },
-        poverty: 6048
+        poverty: BULGARIAN_NSI_QUINTILES_2022.metadata.povertyLine, // 3092 EUR
+        currency: "EUR"
       };
     case "eurostat_2022":
       return {
@@ -38,7 +41,8 @@ export function loadPreset(key: string): PresetResult {
           meanIncome: EUROSTAT_EU27_2022.dataset.meanIncome,
           points: EUROSTAT_EU27_2022.dataset.points.map((pt) => ({ ...pt }))
         },
-        poverty: 12300
+        poverty: EUROSTAT_EU27_2022.metadata.povertyLine, // 12300 EUR
+        currency: "EUR"
       };
     case "us_census_2022":
       return {
@@ -46,27 +50,31 @@ export function loadPreset(key: string): PresetResult {
           meanIncome: US_CENSUS_CPS_2022.dataset.meanIncome,
           points: US_CENSUS_CPS_2022.dataset.points.map((pt) => ({ ...pt }))
         },
-        poverty: 29678
+        poverty: US_CENSUS_CPS_2022.metadata.povertyLine, // 29678 USD
+        currency: "USD"
       };
     case "syn_lognormal": {
       const syn = new LogNormalDistribution(0.7);
       return {
         dataset: syn.sampleQuantiles(10, 50000),
-        poverty: 30000
+        poverty: 30000,
+        currency: "USD"
       };
     }
     case "syn_singh_maddala": {
       const syn = new SinghMaddalaDistribution(1.5, 2.8);
       return {
-        dataset: syn.sampleQuantiles(10, 50000),
-        poverty: 30000
+        dataset: syn.sampleQuantiles(10, 45000),
+        poverty: 25000,
+        currency: "USD"
       };
     }
     case "syn_dagum": {
       const syn = new DagumDistribution(3.5, 0.7);
       return {
-        dataset: syn.sampleQuantiles(10, 50000),
-        poverty: 30000
+        dataset: syn.sampleQuantiles(10, 48000),
+        poverty: 27000,
+        currency: "USD"
       };
     }
     default:
@@ -75,7 +83,8 @@ export function loadPreset(key: string): PresetResult {
           meanIncome: BULGARIAN_NSI_2022.dataset.meanIncome,
           points: BULGARIAN_NSI_2022.dataset.points.map((pt) => ({ ...pt }))
         },
-        poverty: 6048
+        poverty: BULGARIAN_NSI_2022.metadata.povertyLine,
+        currency: "EUR"
       };
   }
 }

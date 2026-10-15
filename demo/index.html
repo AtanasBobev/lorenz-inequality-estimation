@@ -3,156 +3,275 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lorenz Inequality Estimation</title>
+    <title>Lorenz Inequality Estimation Engine</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <header class="page-header">
-      <div class="header-inner">
-        <h1>Lorenz Inequality Estimation Engine</h1>
-        <p class="subtitle">
-          Continuous curve reconstruction and macroeconomic inequality analysis from discrete quantiles
-        </p>
+    <!-- Bootstrap-Style Navbar -->
+    <nav class="navbar">
+      <div class="container-fluid d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <span class="navbar-brand">Lorenz Inequality Engine</span>
+          <span class="badge badge-dark">v0.1.0</span>
+          <span class="badge badge-outline">TypeScript / PCHIP-Pareto</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted" style="font-size: 0.8rem;">Status:</span>
+          <span id="badgeStatus" class="badge badge-dark">Ready</span>
+        </div>
       </div>
-    </header>
+    </nav>
 
-    <main class="content-container">
-      <!-- Left Panel: Data & Controls -->
-      <aside class="panel panel-left">
-        <section class="section-block">
-          <h2>Dataset</h2>
-          <div class="form-group">
-            <label for="selectPreset">Benchmark Dataset</label>
-            <select id="selectPreset" class="form-select">
-              <option value="bg_nsi_2022">Bulgarian NSI 2022 (Deciles)</option>
-              <option value="bg_nsi_quintiles">Bulgarian NSI 2022 (Quintiles)</option>
-              <option value="eurostat_2022">Eurostat EU-27 (2022)</option>
-              <option value="us_census_2022">US Census Bureau (2022)</option>
-              <option value="syn_lognormal">Synthetic Log-Normal (σ = 0.7)</option>
-              <option value="syn_singh_maddala">Synthetic Singh-Maddala</option>
-              <option value="syn_dagum">Synthetic Dagum</option>
-            </select>
-          </div>
+    <!-- Main Container Grid -->
+    <div class="container-fluid app-layout">
+      <!-- Validation & Notice Alert Container -->
+      <div id="alertContainer" class="alert alert-dark mb-3" style="display: none;" role="alert">
+        <div class="d-flex justify-content-between align-items-start">
+          <div id="alertContent" class="alert-content"></div>
+          <button id="btnAutoRepair" class="btn btn-sm btn-dark ms-3 text-nowrap">
+            Auto-Repair Knots
+          </button>
+        </div>
+      </div>
 
-          <div class="form-group">
-            <label for="fileInput">Upload Custom Data (CSV / JSON)</label>
-            <input type="file" id="fileInput" class="form-file" accept=".csv,.tsv,.json,.txt" />
-          </div>
-
-          <div class="form-group">
-            <label>Quantile Knots</label>
-            <div class="table-scroll">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Pop (p)</th>
-                    <th>Income (L)</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="quantilesTableBody"></tbody>
-              </table>
+      <div class="row g-3">
+        <!-- Left Column: Controls & Data Ingestion (4 cols) -->
+        <div class="col-left">
+          <!-- Card 1: Data Ingestion & Knot Editor -->
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Quantile Data Ingestion</span>
+              <button id="btnTogglePaste" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;">
+                Paste Raw Text
+              </button>
             </div>
-            <button id="btnAddRow" class="btn-text">+ Add knot</button>
-          </div>
-        </section>
+            <div class="card-body">
+              <!-- Preset Selector -->
+              <div class="mb-3">
+                <label for="selectPreset" class="form-label">Benchmark Dataset</label>
+                <select id="selectPreset" class="form-select">
+                  <option value="bg_nsi_2022">Bulgarian NSI 2022 (Deciles, EUR)</option>
+                  <option value="bg_nsi_quintiles">Bulgarian NSI 2022 (Quintiles, EUR)</option>
+                  <option value="eurostat_2022">Eurostat EU-27 (2022, EUR)</option>
+                  <option value="us_census_2022">US Census Bureau CPS (2022, USD)</option>
+                  <option value="syn_lognormal">Synthetic Log-Normal (σ = 0.70)</option>
+                  <option value="syn_singh_maddala">Synthetic Singh-Maddala</option>
+                  <option value="syn_dagum">Synthetic Dagum</option>
+                </select>
+              </div>
 
-        <section class="section-block">
-          <h2>Estimation Settings</h2>
-          <div class="form-group">
-            <label for="selectModelType">Interpolation Model</label>
-            <select id="selectModelType" class="form-select">
-              <option value="hybrid">Proposed Hybrid (PCHIP + Pareto Tail)</option>
-              <option value="pchip">Monotone PCHIP Spline</option>
-              <option value="cubicspline">Natural Cubic Spline</option>
-            </select>
+              <!-- Raw Text Paste Box (Collapsible) -->
+              <div id="boxPasteArea" class="mb-3 p-2 bg-light border rounded" style="display: none;">
+                <label for="txtRawInput" class="form-label mb-1" style="font-size: 0.78rem;">
+                  Paste comma/tab/space delimited pairs (p, L):
+                </label>
+                <textarea
+                  id="txtRawInput"
+                  class="form-control font-monospace mb-2"
+                  rows="4"
+                  placeholder="0.0, 0.0&#10;0.2, 0.059&#10;0.4, 0.174&#10;0.6, 0.342&#10;0.8, 0.580&#10;1.0, 1.0"
+                  style="font-size: 0.75rem;"
+                ></textarea>
+                <div class="d-flex justify-content-end">
+                  <button id="btnApplyPaste" class="btn btn-sm btn-dark py-1 px-3">Apply Parsed Knots</button>
+                </div>
+              </div>
+
+              <!-- File Upload -->
+              <div class="mb-3">
+                <label for="fileInput" class="form-label">Upload File (.csv, .tsv, .json)</label>
+                <input type="file" id="fileInput" class="form-control form-control-sm" accept=".csv,.tsv,.json,.txt" />
+              </div>
+
+              <!-- Quantile Knots Table -->
+              <div class="mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label mb-0">Discrete Quantile Knots</label>
+                  <span class="text-muted" style="font-size: 0.75rem;">Anchors (0,0) and (1,1) locked</span>
+                </div>
+                <div class="table-responsive knot-table-wrap">
+                  <table class="table table-sm table-bordered table-hover align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width: 32px;" class="text-center">#</th>
+                        <th>Pop Share (p)</th>
+                        <th>Income Share (L)</th>
+                        <th style="width: 38px;"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="quantilesTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Add Knot Button -->
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <button id="btnAddRow" class="btn btn-sm btn-outline-dark">
+                  + Add Interpolation Knot
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="rangeSplice">
-              Pareto Splicing Threshold p*: <strong id="valSplice">0.80</strong>
-            </label>
-            <input
-              type="range"
-              id="rangeSplice"
-              class="form-range"
-              min="0.60"
-              max="0.95"
-              step="0.01"
-              value="0.80"
-            />
-          </div>
+          <!-- Card 2: Model & Economic Parameters -->
+          <div class="card mb-3">
+            <div class="card-header">
+              <span>Estimation & Macroeconomic Parameters</span>
+            </div>
+            <div class="card-body">
+              <!-- Interpolation Model -->
+              <div class="mb-3">
+                <label for="selectModelType" class="form-label">Interpolation Framework</label>
+                <select id="selectModelType" class="form-select">
+                  <option value="hybrid">Proposed Hybrid (PCHIP + Pareto Tail)</option>
+                  <option value="pchip">Monotone PCHIP Spline (Cone Projected)</option>
+                  <option value="cubicspline">Natural Cubic Spline (C2 Continuous)</option>
+                </select>
+                <div id="modelDescription" class="form-text mt-1 text-muted" style="font-size: 0.75rem;"></div>
+              </div>
 
-          <div class="form-group">
-            <label for="inputPoverty">Poverty Line (z)</label>
-            <input type="number" id="inputPoverty" class="form-input" value="6048" />
-          </div>
-        </section>
-      </aside>
+              <!-- Pareto Splicing Point Slider + Input -->
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label for="rangeSplice" class="form-label mb-0">Pareto Tail Splicing Knot (p*)</label>
+                  <div class="input-group input-group-sm" style="width: 80px;">
+                    <input
+                      type="number"
+                      id="numSplice"
+                      class="form-control form-control-sm text-center py-0"
+                      min="0.50"
+                      max="0.98"
+                      step="0.01"
+                      value="0.80"
+                    />
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  id="rangeSplice"
+                  class="form-range"
+                  min="0.60"
+                  max="0.95"
+                  step="0.01"
+                  value="0.80"
+                />
+                <div class="d-flex justify-content-between text-muted" style="font-size: 0.7rem;">
+                  <span>0.60 (Coarse)</span>
+                  <span>0.80 (Default Decile)</span>
+                  <span>0.95 (Extreme Top)</span>
+                </div>
+              </div>
 
-      <!-- Right Panel: Results & Graphics -->
-      <section class="panel panel-right">
-        <!-- Results Table -->
-        <div class="results-box">
-          <h2>Summary Estimates</h2>
-          <table class="summary-table">
-            <tbody>
-              <tr>
-                <td><strong>Gini Coefficient (G)</strong></td>
-                <td><span id="outGini">—</span></td>
-                <td><strong>Gastwirth Bounds</strong></td>
-                <td><span id="outGastwirth">—</span></td>
-              </tr>
-              <tr>
-                <td><strong>Palma Ratio</strong></td>
-                <td><span id="outPalma">—</span></td>
-                <td><strong>Sen Welfare (W)</strong></td>
-                <td><span id="outSen">—</span></td>
-              </tr>
-              <tr>
-                <td><strong>Poverty Headcount (H)</strong></td>
-                <td><span id="outHeadcount">—</span></td>
-                <td><strong>Pareto Alpha (α)</strong></td>
-                <td><span id="outAlpha">—</span></td>
-              </tr>
-            </tbody>
-          </table>
+              <!-- Mean Income -->
+              <div class="mb-3">
+                <label for="inputMeanIncome" class="form-label">Mean Population Income (μ)</label>
+                <div class="input-group input-group-sm">
+                  <span id="labelCurrency" class="input-group-text font-monospace">EUR</span>
+                  <input type="number" id="inputMeanIncome" class="form-control" value="5032" min="1" step="10" />
+                </div>
+                <div class="form-text text-muted" style="font-size: 0.72rem;">Required to scale marginal income y(p) = μ · L'(p).</div>
+              </div>
+
+              <!-- Poverty Line -->
+              <div class="mb-0">
+                <label for="inputPoverty" class="form-label">Absolute Poverty Line (z)</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text font-monospace">z</span>
+                  <input type="number" id="inputPoverty" class="form-control" value="3092" min="1" step="10" />
+                </div>
+                <div class="form-text text-muted" style="font-size: 0.72rem;">
+                  Root-finding solver inverts y(H) = μ · L'(H) = z to extract headcount H.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Lorenz Canvas -->
-        <div class="chart-box">
-          <div class="chart-header">
-            <h3>Lorenz Curve & Gastwirth Bounding Envelope</h3>
+        <!-- Right Column: Outputs, Visualizations & Metrics (8 cols) -->
+        <div class="col-right">
+          <!-- Summary Metrics Card -->
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Reconstructed Macroeconomic Indicators</span>
+              <span class="text-muted" style="font-size: 0.75rem;">Simpson Quadrature (N=200)</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0 summary-table">
+                  <tbody>
+                    <tr>
+                      <td class="metric-label">Gini Index (G)</td>
+                      <td class="metric-value" id="outGini">—</td>
+                      <td class="metric-label">Gastwirth Interval [G_L, G_U]</td>
+                      <td class="metric-value" id="outGastwirth">—</td>
+                    </tr>
+                    <tr>
+                      <td class="metric-label">Palma Ratio (Top 10% / Bottom 40%)</td>
+                      <td class="metric-value" id="outPalma">—</td>
+                      <td class="metric-label">Sen Social Welfare W = μ(1 - G)</td>
+                      <td class="metric-value" id="outSen">—</td>
+                    </tr>
+                    <tr>
+                      <td class="metric-label">Poverty Headcount H = p*</td>
+                      <td class="metric-value" id="outHeadcount">—</td>
+                      <td class="metric-label">Pareto Tail Exponent (α)</td>
+                      <td class="metric-value" id="outAlpha">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-          <div class="canvas-wrap lorenz-wrap">
-            <canvas id="canvasLorenz"></canvas>
-          </div>
-          <div class="legend-row">
-            <span class="legend-entry"><span class="legend-color line-lorenz"></span> Lorenz Curve L(p)</span>
-            <span class="legend-entry"><span class="legend-color area-gastwirth"></span> Gastwirth Envelope</span>
-            <span class="legend-entry"><span class="legend-color line-equality"></span> Line of Equality</span>
-            <span class="legend-entry"><span class="legend-color pt-splice"></span> Splicing Threshold (p*)</span>
-            <span class="legend-entry"><span class="legend-color pt-poverty"></span> Poverty Cutoff</span>
-            <span class="legend-entry"><span class="legend-color pt-knot"></span> Quantile Knots</span>
-          </div>
-        </div>
 
-        <!-- Derivative Canvas -->
-        <div class="chart-box">
-          <div class="chart-header">
-            <h3>Marginal Income Derivative & Poverty Line Root</h3>
+          <!-- Chart 1: Lorenz Curve & Gastwirth Envelope -->
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Lorenz Curve & Gastwirth Bounding Envelope</span>
+              <span class="badge badge-secondary" style="font-size: 0.7rem;">Cumulative Income Distribution</span>
+            </div>
+            <div class="card-body">
+              <div class="canvas-wrapper lorenz-canvas-wrap">
+                <canvas id="canvasLorenz"></canvas>
+              </div>
+              <!-- Monochrome Legend -->
+              <div class="legend-bar mt-2">
+                <div class="legend-item"><span class="legend-icon line-lorenz"></span> Lorenz Curve L(p)</div>
+                <div class="legend-item"><span class="legend-icon area-gastwirth"></span> Gastwirth Envelope</div>
+                <div class="legend-item"><span class="legend-icon line-equality"></span> Line of Equality (p=L)</div>
+                <div class="legend-item"><span class="legend-icon mark-splice"></span> Splice Knot (p*)</div>
+                <div class="legend-item"><span class="legend-icon mark-poverty"></span> Poverty Headcount (H)</div>
+                <div class="legend-item"><span class="legend-icon mark-knot"></span> Quantile Knots</div>
+              </div>
+            </div>
           </div>
-          <div class="canvas-wrap deriv-wrap">
-            <canvas id="canvasDerivative"></canvas>
-          </div>
-          <div class="legend-row">
-            <span class="legend-entry"><span class="legend-color line-deriv"></span> Marginal Income L'(p) = y(p)/μ</span>
-            <span class="legend-entry"><span class="legend-color line-thresh"></span> Normalized Poverty Threshold</span>
-            <span class="legend-entry"><span class="legend-color pt-poverty"></span> Solved Headcount H</span>
+
+          <!-- Chart 2: Marginal Income Derivative & Root Inversion -->
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Normalized Marginal Income Gradient y(p) / μ = L'(p)</span>
+              <span class="badge badge-secondary" style="font-size: 0.7rem;">1D Hybrid Root Inversion</span>
+            </div>
+            <div class="card-body">
+              <div class="canvas-wrapper deriv-canvas-wrap">
+                <canvas id="canvasDerivative"></canvas>
+              </div>
+              <!-- Monochrome Legend -->
+              <div class="legend-bar mt-2">
+                <div class="legend-item"><span class="legend-icon line-deriv"></span> Marginal Income L'(p)</div>
+                <div class="legend-item"><span class="legend-icon line-thresh"></span> Normalized Threshold (z / μ)</div>
+                <div class="legend-item"><span class="legend-icon mark-root"></span> Solved Headcount Root H</div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
+
+    <footer class="footer mt-4 py-3 bg-white border-top">
+      <div class="container-fluid text-center text-muted" style="font-size: 0.75rem;">
+        Senior Diploma Thesis in Computer Science &bull; Lorenz Inequality Estimation Engine &bull; Pure Client-Side TypeScript
+      </div>
+    </footer>
 
     <script src="./app.js"></script>
   </body>

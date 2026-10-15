@@ -17,7 +17,7 @@ export function renderDerivativeChart(canvas: HTMLCanvasElement | null, state: A
 
   ctx.clearRect(0, 0, w, h);
 
-  const pad = { left: 50, right: 25, top: 20, bottom: 35 };
+  const pad = { left: 52, right: 28, top: 20, bottom: 38 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
 
@@ -26,10 +26,10 @@ export function renderDerivativeChart(canvas: HTMLCanvasElement | null, state: A
   const toY = (val: number) => pad.top + (1 - Math.min(val, maxY) / maxY) * plotH;
 
   // Grid lines
-  ctx.strokeStyle = "#e5e7eb";
+  ctx.strokeStyle = "#e9ecef";
   ctx.lineWidth = 1;
   ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-  ctx.fillStyle = "#6b7280";
+  ctx.fillStyle = "#6c757d";
   ctx.textAlign = "center";
 
   for (let i = 0; i <= 5; i++) {
@@ -57,19 +57,19 @@ export function renderDerivativeChart(canvas: HTMLCanvasElement | null, state: A
 
   // Axis Labels
   ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-  ctx.fillStyle = "#374151";
-  ctx.fillText("Population share p", pad.left + plotW / 2, h - 5);
+  ctx.fillStyle = "#212529";
+  ctx.fillText("Population share (p)", pad.left + plotW / 2, h - 8);
 
   ctx.save();
-  ctx.translate(14, pad.top + plotH / 2);
+  ctx.translate(15, pad.top + plotH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.fillText("y(p) / μ", 0, 0);
   ctx.restore();
 
-  // Derivative Curve L'(p)
-  if (state.currentModel) {
-    ctx.strokeStyle = "#059669";
-    ctx.lineWidth = 2.0;
+  // Marginal Income Derivative Curve L'(p) (Solid Deep Charcoal)
+  if (state.currentModel && state.validation.isValid) {
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 2.2;
     ctx.beginPath();
     const steps = 180;
     for (let i = 1; i <= steps; i++) {
@@ -88,9 +88,9 @@ export function renderDerivativeChart(canvas: HTMLCanvasElement | null, state: A
   const normThreshold = state.povertyLine / meanInc;
   const yZ = toY(normThreshold);
 
-  ctx.strokeStyle = "#dc2626";
+  ctx.strokeStyle = "#6c757d";
   ctx.setLineDash([4, 4]);
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.moveTo(pad.left, yZ);
   ctx.lineTo(pad.left + plotW, yZ);
@@ -98,15 +98,36 @@ export function renderDerivativeChart(canvas: HTMLCanvasElement | null, state: A
   ctx.setLineDash([]);
 
   // Poverty headcount intersection point
-  if (state.currentHeadcount > 0 && state.currentHeadcount < 0.98) {
-    const xZ = toX(state.currentHeadcount);
-    ctx.fillStyle = "#dc2626";
-    ctx.beginPath();
-    ctx.arc(xZ, yZ, 5, 0, Math.PI * 2);
-    ctx.fill();
+  if (state.currentHeadcount > 0 && state.currentHeadcount < 1 && state.validation.isValid) {
+    const xH = toX(state.currentHeadcount);
 
-    ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    // Drop line
+    ctx.strokeStyle = "#adb5bd";
+    ctx.setLineDash([2, 2]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xH, yZ);
+    ctx.lineTo(xH, pad.top + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Intersection marker
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.rect(xH - 4, yZ - 4, 8, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#111827";
+    ctx.fillRect(xH - 2, yZ - 2, 4, 4);
+
+    // Coordinate tag
+    ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace";
+    ctx.fillStyle = "#212529";
     ctx.textAlign = "left";
-    ctx.fillText(`H = ${(state.currentHeadcount * 100).toFixed(1)}%`, xZ + 8, yZ - 6);
+    const tagText = `H = ${(state.currentHeadcount * 100).toFixed(1)}%`;
+    ctx.fillText(tagText, xH + 8, Math.max(pad.top + 14, yZ - 6));
   }
 }

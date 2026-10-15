@@ -1337,7 +1337,9 @@
             meanIncome: BULGARIAN_NSI_2022.dataset.meanIncome,
             points: BULGARIAN_NSI_2022.dataset.points.map((pt) => ({ ...pt }))
           },
-          poverty: 6048
+          poverty: BULGARIAN_NSI_2022.metadata.povertyLine,
+          // 3092 EUR
+          currency: "EUR"
         };
       case "bg_nsi_quintiles":
         return {
@@ -1345,7 +1347,9 @@
             meanIncome: BULGARIAN_NSI_QUINTILES_2022.dataset.meanIncome,
             points: BULGARIAN_NSI_QUINTILES_2022.dataset.points.map((pt) => ({ ...pt }))
           },
-          poverty: 6048
+          poverty: BULGARIAN_NSI_QUINTILES_2022.metadata.povertyLine,
+          // 3092 EUR
+          currency: "EUR"
         };
       case "eurostat_2022":
         return {
@@ -1353,7 +1357,9 @@
             meanIncome: EUROSTAT_EU27_2022.dataset.meanIncome,
             points: EUROSTAT_EU27_2022.dataset.points.map((pt) => ({ ...pt }))
           },
-          poverty: 12300
+          poverty: EUROSTAT_EU27_2022.metadata.povertyLine,
+          // 12300 EUR
+          currency: "EUR"
         };
       case "us_census_2022":
         return {
@@ -1361,27 +1367,32 @@
             meanIncome: US_CENSUS_CPS_2022.dataset.meanIncome,
             points: US_CENSUS_CPS_2022.dataset.points.map((pt) => ({ ...pt }))
           },
-          poverty: 29678
+          poverty: US_CENSUS_CPS_2022.metadata.povertyLine,
+          // 29678 USD
+          currency: "USD"
         };
       case "syn_lognormal": {
         const syn = new LogNormalDistribution(0.7);
         return {
           dataset: syn.sampleQuantiles(10, 5e4),
-          poverty: 3e4
+          poverty: 3e4,
+          currency: "USD"
         };
       }
       case "syn_singh_maddala": {
         const syn = new SinghMaddalaDistribution(1.5, 2.8);
         return {
-          dataset: syn.sampleQuantiles(10, 5e4),
-          poverty: 3e4
+          dataset: syn.sampleQuantiles(10, 45e3),
+          poverty: 25e3,
+          currency: "USD"
         };
       }
       case "syn_dagum": {
         const syn = new DagumDistribution(3.5, 0.7);
         return {
-          dataset: syn.sampleQuantiles(10, 5e4),
-          poverty: 3e4
+          dataset: syn.sampleQuantiles(10, 48e3),
+          poverty: 27e3,
+          currency: "USD"
         };
       }
       default:
@@ -1390,7 +1401,8 @@
             meanIncome: BULGARIAN_NSI_2022.dataset.meanIncome,
             points: BULGARIAN_NSI_2022.dataset.points.map((pt) => ({ ...pt }))
           },
-          poverty: 6048
+          poverty: BULGARIAN_NSI_2022.metadata.povertyLine,
+          currency: "EUR"
         };
     }
   }
@@ -1434,15 +1446,15 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, h);
-    const pad = { left: 50, right: 25, top: 25, bottom: 40 };
+    const pad = { left: 52, right: 28, top: 24, bottom: 44 };
     const plotW = w - pad.left - pad.right;
     const plotH = h - pad.top - pad.bottom;
     const toX = (p) => pad.left + p * plotW;
     const toY = (L) => pad.top + (1 - L) * plotH;
-    ctx.strokeStyle = "#e5e7eb";
+    ctx.strokeStyle = "#e9ecef";
     ctx.lineWidth = 1;
     ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillStyle = "#6b7280";
+    ctx.fillStyle = "#6c757d";
     ctx.textAlign = "center";
     for (let i = 0; i <= 5; i++) {
       const val = i / 5;
@@ -1462,10 +1474,10 @@
       ctx.textAlign = "center";
     }
     ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillStyle = "#374151";
-    ctx.fillText("Cumulative population share p", pad.left + plotW / 2, h - 8);
+    ctx.fillStyle = "#212529";
+    ctx.fillText("Cumulative population share (p)", pad.left + plotW / 2, h - 10);
     ctx.save();
-    ctx.translate(14, pad.top + plotH / 2);
+    ctx.translate(15, pad.top + plotH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText("Cumulative income share L(p)", 0, 0);
     ctx.restore();
@@ -1479,20 +1491,25 @@
       ctx.lineTo(toX(1), toY(1));
       ctx.lineTo(toX(0), toY(0));
       ctx.closePath();
-      ctx.fillStyle = "rgba(224, 231, 255, 0.5)";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
       ctx.fill();
+      ctx.strokeStyle = "#adb5bd";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
-    ctx.strokeStyle = "#9ca3af";
-    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = "#adb5bd";
+    ctx.setLineDash([4, 4]);
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.moveTo(toX(0), toY(0));
     ctx.lineTo(toX(1), toY(1));
     ctx.stroke();
     ctx.setLineDash([]);
-    if (state2.currentModel) {
-      ctx.strokeStyle = "#1d4ed8";
-      ctx.lineWidth = 2.2;
+    if (state2.currentModel && state2.validation.isValid) {
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
       const steps = 200;
       for (let i = 0; i <= steps; i++) {
@@ -1505,48 +1522,62 @@
       }
       ctx.stroke();
     }
-    if (state2.modelType === "hybrid") {
-      const xS = toX(state2.splicingThreshold);
-      const yS = toY(
-        state2.currentModel ? state2.currentModel.evaluate(state2.splicingThreshold) : state2.splicingThreshold
-      );
-      ctx.fillStyle = "#7c3aed";
-      ctx.beginPath();
-      ctx.arc(xS, yS, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
-    if (state2.currentHeadcount > 0 && state2.currentHeadcount < 1) {
-      const pZ = state2.currentHeadcount;
-      const lZ = state2.currentModel ? state2.currentModel.evaluate(pZ) : 0;
-      const xZ = toX(pZ);
-      const yZ = toY(lZ);
+    if (state2.modelType === "hybrid" && state2.currentModel && state2.validation.isValid) {
+      const pStar = state2.splicingThreshold;
+      const lStar = state2.currentModel.evaluate(pStar);
+      const xStar = toX(pStar);
+      const yStar = toY(lStar);
+      ctx.strokeStyle = "#6c757d";
       ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = "#dc2626";
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(xZ, pad.top + plotH);
-      ctx.lineTo(xZ, yZ);
-      ctx.lineTo(pad.left, yZ);
+      ctx.moveTo(xStar, pad.top);
+      ctx.lineTo(xStar, pad.top + plotH);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = "#dc2626";
+      const s = 5.5;
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#212529";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(xZ, yZ, 5, 0, Math.PI * 2);
+      ctx.moveTo(xStar, yStar - s);
+      ctx.lineTo(xStar + s, yStar);
+      ctx.lineTo(xStar, yStar + s);
+      ctx.lineTo(xStar - s, yStar);
+      ctx.closePath();
       ctx.fill();
-    }
-    for (let i = 0; i < pts.length; i++) {
-      const x = toX(pts[i].populationShare);
-      const y = toY(pts[i].incomeShare);
-      ctx.fillStyle = "#1e293b";
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5;
       ctx.stroke();
+    }
+    if (state2.currentHeadcount > 0 && state2.currentHeadcount < 1 && state2.currentModel && state2.validation.isValid) {
+      const hP = state2.currentHeadcount;
+      const hL = state2.currentModel.evaluate(hP);
+      const xH = toX(hP);
+      const yH = toY(hL);
+      ctx.strokeStyle = "#495057";
+      ctx.setLineDash([2, 2]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(xH, pad.top);
+      ctx.lineTo(xH, pad.top + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#212529";
+      ctx.fillRect(xH - 3.5, yH - 3.5, 7, 7);
+    }
+    for (const pt of pts) {
+      const x = toX(pt.populationShare);
+      const y = toY(pt.incomeShare);
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#111827";
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -1564,16 +1595,16 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, h);
-    const pad = { left: 50, right: 25, top: 20, bottom: 35 };
+    const pad = { left: 52, right: 28, top: 20, bottom: 38 };
     const plotW = w - pad.left - pad.right;
     const plotH = h - pad.top - pad.bottom;
     const maxY = 3.5;
     const toX = (p) => pad.left + p * plotW;
     const toY = (val) => pad.top + (1 - Math.min(val, maxY) / maxY) * plotH;
-    ctx.strokeStyle = "#e5e7eb";
+    ctx.strokeStyle = "#e9ecef";
     ctx.lineWidth = 1;
     ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillStyle = "#6b7280";
+    ctx.fillStyle = "#6c757d";
     ctx.textAlign = "center";
     for (let i = 0; i <= 5; i++) {
       const val = i / 5;
@@ -1596,16 +1627,16 @@
       ctx.textAlign = "center";
     }
     ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillStyle = "#374151";
-    ctx.fillText("Population share p", pad.left + plotW / 2, h - 5);
+    ctx.fillStyle = "#212529";
+    ctx.fillText("Population share (p)", pad.left + plotW / 2, h - 8);
     ctx.save();
-    ctx.translate(14, pad.top + plotH / 2);
+    ctx.translate(15, pad.top + plotH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText("y(p) / \u03BC", 0, 0);
     ctx.restore();
-    if (state2.currentModel) {
-      ctx.strokeStyle = "#059669";
-      ctx.lineWidth = 2;
+    if (state2.currentModel && state2.validation.isValid) {
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       const steps = 180;
       for (let i = 1; i <= steps; i++) {
@@ -1621,36 +1652,76 @@
     const meanInc = state2.dataset.meanIncome || 1e4;
     const normThreshold = state2.povertyLine / meanInc;
     const yZ = toY(normThreshold);
-    ctx.strokeStyle = "#dc2626";
+    ctx.strokeStyle = "#6c757d";
     ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.moveTo(pad.left, yZ);
     ctx.lineTo(pad.left + plotW, yZ);
     ctx.stroke();
     ctx.setLineDash([]);
-    if (state2.currentHeadcount > 0 && state2.currentHeadcount < 0.98) {
-      const xZ = toX(state2.currentHeadcount);
-      ctx.fillStyle = "#dc2626";
+    if (state2.currentHeadcount > 0 && state2.currentHeadcount < 1 && state2.validation.isValid) {
+      const xH = toX(state2.currentHeadcount);
+      ctx.strokeStyle = "#adb5bd";
+      ctx.setLineDash([2, 2]);
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(xZ, yZ, 5, 0, Math.PI * 2);
+      ctx.moveTo(xH, yZ);
+      ctx.lineTo(xH, pad.top + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.rect(xH - 4, yZ - 4, 8, 8);
       ctx.fill();
-      ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.stroke();
+      ctx.fillStyle = "#111827";
+      ctx.fillRect(xH - 2, yZ - 2, 4, 4);
+      ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace";
+      ctx.fillStyle = "#212529";
       ctx.textAlign = "left";
-      ctx.fillText(`H = ${(state2.currentHeadcount * 100).toFixed(1)}%`, xZ + 8, yZ - 6);
+      const tagText = `H = ${(state2.currentHeadcount * 100).toFixed(1)}%`;
+      ctx.fillText(tagText, xH + 8, Math.max(pad.top + 14, yZ - 6));
     }
   }
 
   // demo/src/tableEditor.ts
-  function renderTable(tableBody2, points, onUpdate, onDelete) {
+  function renderTable(tableBody2, points, validation, onUpdate, onDelete) {
     if (!tableBody2) return;
     tableBody2.innerHTML = "";
+    const errorsByRow = /* @__PURE__ */ new Map();
+    for (const err of validation.errors) {
+      if (!errorsByRow.has(err.rowIndex)) {
+        errorsByRow.set(err.rowIndex, /* @__PURE__ */ new Set());
+      }
+      errorsByRow.get(err.rowIndex).add(err.field);
+    }
     points.forEach((pt, index) => {
+      const isFirst = index === 0;
+      const isLast = index === points.length - 1;
+      const rowErrors = errorsByRow.get(index);
+      const hasPError = rowErrors ? rowErrors.has("p") || rowErrors.has("all") : false;
+      const hasLError = rowErrors ? rowErrors.has("L") || rowErrors.has("all") : false;
       const tr = document.createElement("tr");
+      if (rowErrors && rowErrors.size > 0) {
+        tr.className = "table-row-invalid";
+      }
+      const pClass = `form-control form-control-sm font-monospace ${hasPError ? "is-invalid" : ""}`;
+      const lClass = `form-control form-control-sm font-monospace ${hasLError ? "is-invalid" : ""}`;
+      const lockBadge = isFirst ? `<span class="badge badge-secondary" title="Anchor (0, 0)">0.000</span>` : isLast ? `<span class="badge badge-secondary" title="Anchor (1, 1)">1.000</span>` : "";
       tr.innerHTML = `
-      <td><input type="number" step="0.01" min="0" max="1" class="tbl-input" value="${pt.populationShare.toFixed(3)}" data-idx="${index}" data-field="p"></td>
-      <td><input type="number" step="0.001" min="0" max="1" class="tbl-input" value="${pt.incomeShare.toFixed(4)}" data-idx="${index}" data-field="L"></td>
-      <td><button class="btn-del" data-delete="${index}" ${index === 0 || index === points.length - 1 ? "disabled style='visibility:hidden'" : ""}>\xD7</button></td>
+      <td class="text-muted text-center py-1" style="width: 32px; font-size: 0.75rem;">${index + 1}</td>
+      <td class="py-1">
+        ${isFirst || isLast ? lockBadge : `<input type="number" step="0.01" min="0" max="1" class="${pClass}" value="${pt.populationShare.toFixed(3)}" data-idx="${index}" data-field="p">`}
+      </td>
+      <td class="py-1">
+        ${isFirst || isLast ? lockBadge : `<input type="number" step="0.001" min="0" max="1" class="${lClass}" value="${pt.incomeShare.toFixed(4)}" data-idx="${index}" data-field="L">`}
+      </td>
+      <td class="text-center py-1" style="width: 38px;">
+        ${isFirst || isLast ? `<span class="text-muted" style="font-size: 0.8rem;">\u{1F512}</span>` : `<button class="btn btn-sm btn-outline-secondary py-0 px-1" data-delete="${index}" title="Remove knot" style="line-height: 1.2;">&times;</button>`}
+      </td>
     `;
       tableBody2.appendChild(tr);
     });
@@ -1674,7 +1745,28 @@
   }
 
   // demo/src/fileIngestion.ts
-  function setupFileInput(fileInput2, currentMeanIncome, onLoaded) {
+  function parseRawContent(text, fileName, meanIncome) {
+    try {
+      const trimmed = text.trim();
+      if (!trimmed) {
+        return { success: false, errorMessage: "Input content is empty." };
+      }
+      let parsed;
+      if (fileName.endsWith(".json") || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        parsed = DatasetParser.parseJson(trimmed, { name: fileName });
+      } else {
+        parsed = DatasetParser.parseDelimited(trimmed, { name: fileName });
+      }
+      const dataset = DatasetParser.toQuantileDataset(parsed, meanIncome || 1e4);
+      return { success: true, dataset };
+    } catch (err) {
+      return {
+        success: false,
+        errorMessage: err.message || "Failed to parse quantile data."
+      };
+    }
+  }
+  function setupFileInput(fileInput2, getMeanIncome, onResult) {
     if (!fileInput2) return;
     fileInput2.addEventListener("change", (e) => {
       const target = e.target;
@@ -1682,34 +1774,176 @@
         const file = target.files[0];
         const reader = new FileReader();
         reader.onload = (ev) => {
-          try {
-            const text = ev.target?.result;
-            let parsed;
-            if (file.name.endsWith(".json")) {
-              parsed = DatasetParser.parseJson(text, { name: file.name });
-            } else {
-              parsed = DatasetParser.parseDelimited(text, { name: file.name });
-            }
-            const dataset = DatasetParser.toQuantileDataset(parsed, currentMeanIncome || 1e4);
-            onLoaded(dataset);
-          } catch (err) {
-            alert("Failed to parse file: " + err.message);
-          }
+          const text = ev.target?.result;
+          const res = parseRawContent(text, file.name, getMeanIncome());
+          onResult(res);
+          target.value = "";
+        };
+        reader.onerror = () => {
+          onResult({
+            success: false,
+            errorMessage: `Failed to read file ${file.name}.`
+          });
         };
         reader.readAsText(file);
       }
     });
   }
 
+  // demo/src/validation.ts
+  function validateQuantilePoints(points) {
+    const errors = [];
+    const warnings = [];
+    if (points.length < 3) {
+      errors.push({
+        rowIndex: 0,
+        field: "all",
+        message: `At least 3 quantile knots are required for spline interpolation. Currently provided: ${points.length}.`
+      });
+      return { isValid: false, errors, warnings };
+    }
+    if (Math.abs(points[0].populationShare) > 1e-6 || Math.abs(points[0].incomeShare) > 1e-6) {
+      errors.push({
+        rowIndex: 0,
+        field: "all",
+        message: "The initial knot must be anchored exactly at (p=0.00, L=0.00)."
+      });
+    }
+    const lastIdx = points.length - 1;
+    if (Math.abs(points[lastIdx].populationShare - 1) > 1e-6 || Math.abs(points[lastIdx].incomeShare - 1) > 1e-6) {
+      errors.push({
+        rowIndex: lastIdx,
+        field: "all",
+        message: "The terminal knot must be anchored exactly at (p=1.00, L=1.00)."
+      });
+    }
+    for (let i = 0; i < points.length; i++) {
+      const pt = points[i];
+      if (isNaN(pt.populationShare) || pt.populationShare < 0 || pt.populationShare > 1) {
+        errors.push({
+          rowIndex: i,
+          field: "p",
+          message: `Knot ${i + 1}: Population share p must be a number between 0.0 and 1.0.`
+        });
+      }
+      if (isNaN(pt.incomeShare) || pt.incomeShare < 0 || pt.incomeShare > 1) {
+        errors.push({
+          rowIndex: i,
+          field: "L",
+          message: `Knot ${i + 1}: Income share L must be a number between 0.0 and 1.0.`
+        });
+      }
+      if (pt.incomeShare > pt.populationShare + 1e-6) {
+        errors.push({
+          rowIndex: i,
+          field: "L",
+          message: `Knot ${i + 1}: Income share L (${pt.incomeShare.toFixed(3)}) exceeds population share p (${pt.populationShare.toFixed(3)}). This violates sub-diagonal property.`
+        });
+      }
+      if (i > 0) {
+        const prev = points[i - 1];
+        if (pt.populationShare <= prev.populationShare) {
+          errors.push({
+            rowIndex: i,
+            field: "p",
+            message: `Knot ${i + 1}: Population share p (${pt.populationShare.toFixed(3)}) must be strictly greater than previous knot (${prev.populationShare.toFixed(3)}).`
+          });
+        } else if (pt.populationShare - prev.populationShare < 5e-3) {
+          warnings.push(
+            `Knot ${i + 1}: Distance to previous knot is very small (${(pt.populationShare - prev.populationShare).toFixed(4)}), which may produce steep local derivatives.`
+          );
+        }
+        if (pt.incomeShare < prev.incomeShare - 1e-6) {
+          errors.push({
+            rowIndex: i,
+            field: "L",
+            message: `Knot ${i + 1}: Cumulative income share L (${pt.incomeShare.toFixed(3)}) cannot be less than previous knot (${prev.incomeShare.toFixed(3)}).`
+          });
+        }
+      }
+    }
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+  function validateEconomicParameters(meanIncome, povertyLine, splicePoint, points) {
+    let meanIncomeError = null;
+    let povertyLineError = null;
+    let povertyLineWarning = null;
+    let spliceError = null;
+    if (isNaN(meanIncome) || !isFinite(meanIncome) || meanIncome <= 0) {
+      meanIncomeError = "Mean income must be a strictly positive number.";
+    }
+    if (isNaN(povertyLine) || !isFinite(povertyLine) || povertyLine <= 0) {
+      povertyLineError = "Poverty threshold must be a strictly positive number.";
+    } else if (meanIncome > 0) {
+      const ratio = povertyLine / meanIncome;
+      if (ratio > 5) {
+        povertyLineWarning = `Poverty line exceeds 500% of mean income (${(ratio * 100).toFixed(0)}%). Headcount will approach 100%.`;
+      } else if (ratio < 0.05) {
+        povertyLineWarning = `Poverty line is less than 5% of mean income. Headcount will approach 0%.`;
+      }
+    }
+    if (isNaN(splicePoint) || splicePoint < 0.5 || splicePoint > 0.98) {
+      spliceError = "Pareto splicing threshold p* must lie between 0.50 and 0.98.";
+    } else if (points.length >= 3) {
+      const minInterior = points[1].populationShare;
+      const maxInterior = points[points.length - 2].populationShare;
+      if (splicePoint < minInterior || splicePoint > maxInterior + 0.05) {
+        spliceError = `Splicing point p* (${splicePoint.toFixed(2)}) should fall within empirical interior knots [${minInterior.toFixed(2)}, ${maxInterior.toFixed(2)}].`;
+      }
+    }
+    return {
+      meanIncomeError,
+      povertyLineError,
+      povertyLineWarning,
+      spliceError,
+      isValid: meanIncomeError === null && povertyLineError === null && spliceError === null
+    };
+  }
+  function autoRepairQuantiles(points) {
+    if (points.length < 2) {
+      return [
+        { populationShare: 0, incomeShare: 0 },
+        { populationShare: 0.5, incomeShare: 0.25 },
+        { populationShare: 1, incomeShare: 1 }
+      ];
+    }
+    let interior = points.filter((pt, idx) => idx > 0 && idx < points.length - 1).map((pt) => ({
+      populationShare: Math.min(0.99, Math.max(0.01, isNaN(pt.populationShare) ? 0.5 : pt.populationShare)),
+      incomeShare: Math.min(1, Math.max(0, isNaN(pt.incomeShare) ? 0.25 : pt.incomeShare))
+    }));
+    interior.sort((a, b) => a.populationShare - b.populationShare);
+    const cleaned = [{ populationShare: 0, incomeShare: 0 }];
+    let prevP = 0;
+    let prevL = 0;
+    for (const pt of interior) {
+      let p = pt.populationShare;
+      if (p <= prevP) {
+        p = Math.min(0.98, prevP + 0.02);
+      }
+      let L = Math.min(p, Math.max(prevL, pt.incomeShare));
+      cleaned.push({ populationShare: p, incomeShare: L });
+      prevP = p;
+      prevL = L;
+    }
+    cleaned.push({ populationShare: 1, incomeShare: 1 });
+    return cleaned;
+  }
+
   // demo/src/main.ts
+  var initialPreset = loadPreset("bg_nsi_2022");
   var state = {
     dataset: {
-      meanIncome: BULGARIAN_NSI_2022.dataset.meanIncome,
-      points: BULGARIAN_NSI_2022.dataset.points.map((pt) => ({ ...pt }))
+      meanIncome: initialPreset.dataset.meanIncome,
+      points: initialPreset.dataset.points.map((pt) => ({ ...pt }))
     },
+    currency: initialPreset.currency,
     modelType: "hybrid",
     splicingThreshold: 0.8,
-    povertyLine: 6048,
+    povertyLine: initialPreset.poverty,
     currentModel: null,
     currentHeadcount: 0.329,
     currentGastwirth: {
@@ -1719,16 +1953,33 @@
       estimatedGini: 0.3621,
       isCertified: true,
       maxError: 0.0155
+    },
+    validation: { isValid: true, errors: [], warnings: [] },
+    paramValidation: {
+      meanIncomeError: null,
+      povertyLineError: null,
+      povertyLineWarning: null,
+      spliceError: null,
+      isValid: true
     }
   };
   var selectPreset = document.getElementById("selectPreset");
   var selectModelType = document.getElementById("selectModelType");
   var rangeSplice = document.getElementById("rangeSplice");
-  var valSplice = document.getElementById("valSplice");
+  var numSplice = document.getElementById("numSplice");
+  var inputMeanIncome = document.getElementById("inputMeanIncome");
   var inputPoverty = document.getElementById("inputPoverty");
+  var labelCurrency = document.getElementById("labelCurrency");
   var fileInput = document.getElementById("fileInput");
   var tableBody = document.getElementById("quantilesTableBody");
   var btnAddRow = document.getElementById("btnAddRow");
+  var btnAutoRepair = document.getElementById("btnAutoRepair");
+  var btnTogglePaste = document.getElementById("btnTogglePaste");
+  var boxPasteArea = document.getElementById("boxPasteArea");
+  var txtRawInput = document.getElementById("txtRawInput");
+  var btnApplyPaste = document.getElementById("btnApplyPaste");
+  var alertContainer = document.getElementById("alertContainer");
+  var alertContent = document.getElementById("alertContent");
   var canvasLorenz = document.getElementById("canvasLorenz");
   var canvasDerivative = document.getElementById("canvasDerivative");
   var outGini = document.getElementById("outGini");
@@ -1737,7 +1988,37 @@
   var outSen = document.getElementById("outSen");
   var outHeadcount = document.getElementById("outHeadcount");
   var outAlpha = document.getElementById("outAlpha");
+  var badgeStatus = document.getElementById("badgeStatus");
+  var modelDescription = document.getElementById("modelDescription");
+  function updateModelDescription() {
+    if (!modelDescription) return;
+    if (state.modelType === "hybrid") {
+      modelDescription.textContent = "Tail-spliced hybrid model: shape-preserving PCHIP body spliced onto an asymptotic Pareto tail with C^1 derivative continuity.";
+    } else if (state.modelType === "pchip") {
+      modelDescription.textContent = "Shape-preserving piecewise cubic Hermite interpolating polynomial (PCHIP) with harmonic slope weighting and iterative convexity cone projection.";
+    } else {
+      modelDescription.textContent = "Natural C^2 cubic spline: smooth twice-differentiable polynomial solved via Thomas algorithm. May exhibit oscillatory overshoot on coarse data.";
+    }
+  }
   function recompute() {
+    state.validation = validateQuantilePoints(state.dataset.points);
+    state.paramValidation = validateEconomicParameters(
+      state.dataset.meanIncome || 1e4,
+      state.povertyLine,
+      state.splicingThreshold,
+      state.dataset.points
+    );
+    updateAlerts();
+    updateModelDescription();
+    if (!state.validation.isValid || !state.paramValidation.isValid) {
+      if (badgeStatus) {
+        badgeStatus.className = "badge badge-dark border border-dark text-white";
+        badgeStatus.textContent = "Validation Issue";
+      }
+      renderLorenzChart(canvasLorenz, state);
+      renderDerivativeChart(canvasDerivative, state);
+      return;
+    }
     try {
       const result = evaluateInequality(state);
       state.currentModel = result.model;
@@ -1751,7 +2032,7 @@
         outPalma.textContent = isFinite(result.metrics.palmaRatio) ? result.metrics.palmaRatio.toFixed(2) : "N/A";
       }
       if (outSen) {
-        outSen.textContent = `${Math.round(result.metrics.senWelfareIndex).toLocaleString()}`;
+        outSen.textContent = `${Math.round(result.metrics.senWelfareIndex).toLocaleString()} ${state.currency}`;
       }
       if (outHeadcount) {
         outHeadcount.textContent = `${(state.currentHeadcount * 100).toFixed(1)}%`;
@@ -1763,16 +2044,54 @@
           outAlpha.textContent = "N/A";
         }
       }
+      if (badgeStatus) {
+        badgeStatus.className = "badge badge-dark";
+        badgeStatus.textContent = state.currentGastwirth.isCertified ? "Certified [G_L, G_U]" : "Verified";
+      }
       renderLorenzChart(canvasLorenz, state);
       renderDerivativeChart(canvasDerivative, state);
     } catch (err) {
       console.error("Recompute error:", err);
+      if (badgeStatus) {
+        badgeStatus.className = "badge badge-secondary";
+        badgeStatus.textContent = "Solver Error";
+      }
+    }
+  }
+  function updateAlerts() {
+    if (!alertContainer || !alertContent) return;
+    const messages = [];
+    for (const err of state.validation.errors) {
+      messages.push(`<strong>Knot Error:</strong> ${err.message}`);
+    }
+    if (state.paramValidation.meanIncomeError) {
+      messages.push(`<strong>Parameter Error:</strong> ${state.paramValidation.meanIncomeError}`);
+    }
+    if (state.paramValidation.povertyLineError) {
+      messages.push(`<strong>Parameter Error:</strong> ${state.paramValidation.povertyLineError}`);
+    }
+    if (state.paramValidation.spliceError) {
+      messages.push(`<strong>Splicing Error:</strong> ${state.paramValidation.spliceError}`);
+    }
+    for (const warn of state.validation.warnings) {
+      messages.push(`<strong>Warning:</strong> ${warn}`);
+    }
+    if (state.paramValidation.povertyLineWarning) {
+      messages.push(`<strong>Notice:</strong> ${state.paramValidation.povertyLineWarning}`);
+    }
+    if (messages.length > 0) {
+      alertContainer.style.display = "block";
+      alertContent.innerHTML = messages.map((m) => `<div>${m}</div>`).join("");
+    } else {
+      alertContainer.style.display = "none";
+      alertContent.innerHTML = "";
     }
   }
   function updateTable() {
     renderTable(
       tableBody,
       state.dataset.points,
+      state.validation,
       (index, field, val) => {
         if (field === "p") state.dataset.points[index].populationShare = val;
         if (field === "L") state.dataset.points[index].incomeShare = val;
@@ -1793,7 +2112,10 @@
       const loaded = loadPreset(key);
       state.dataset = loaded.dataset;
       state.povertyLine = loaded.poverty;
+      state.currency = loaded.currency;
       if (inputPoverty) inputPoverty.value = String(Math.round(state.povertyLine));
+      if (inputMeanIncome) inputMeanIncome.value = String(Math.round(state.dataset.meanIncome || 1e4));
+      if (labelCurrency) labelCurrency.textContent = state.currency;
       updateTable();
       recompute();
     });
@@ -1804,16 +2126,32 @@
       recompute();
     });
   }
-  if (rangeSplice) {
+  if (rangeSplice && numSplice) {
     rangeSplice.addEventListener("input", (e) => {
       state.splicingThreshold = parseFloat(e.target.value);
-      if (valSplice) valSplice.textContent = state.splicingThreshold.toFixed(2);
+      numSplice.value = state.splicingThreshold.toFixed(2);
       recompute();
+    });
+    numSplice.addEventListener("input", (e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val)) {
+        state.splicingThreshold = Math.max(0.5, Math.min(0.98, val));
+        rangeSplice.value = String(state.splicingThreshold);
+        recompute();
+      }
     });
   }
   if (inputPoverty) {
     inputPoverty.addEventListener("input", (e) => {
-      state.povertyLine = parseFloat(e.target.value) || 1;
+      const val = parseFloat(e.target.value);
+      state.povertyLine = isNaN(val) ? 0 : val;
+      recompute();
+    });
+  }
+  if (inputMeanIncome) {
+    inputMeanIncome.addEventListener("input", (e) => {
+      const val = parseFloat(e.target.value);
+      state.dataset.meanIncome = isNaN(val) ? 0 : val;
       recompute();
     });
   }
@@ -1829,15 +2167,52 @@
       recompute();
     });
   }
-  setupFileInput(fileInput, state.dataset.meanIncome || 1e4, (loadedDataset) => {
-    state.dataset = loadedDataset;
-    updateTable();
-    recompute();
+  if (btnAutoRepair) {
+    btnAutoRepair.addEventListener("click", () => {
+      state.dataset.points = autoRepairQuantiles(state.dataset.points);
+      updateTable();
+      recompute();
+    });
+  }
+  if (btnTogglePaste && boxPasteArea) {
+    btnTogglePaste.addEventListener("click", () => {
+      const isHidden = boxPasteArea.style.display === "none";
+      boxPasteArea.style.display = isHidden ? "block" : "none";
+      btnTogglePaste.textContent = isHidden ? "Close Text Paste" : "Paste Raw Text";
+    });
+  }
+  if (btnApplyPaste && txtRawInput) {
+    btnApplyPaste.addEventListener("click", () => {
+      const content = txtRawInput.value;
+      const res = parseRawContent(content, "manual_entry.csv", state.dataset.meanIncome || 1e4);
+      if (res.success && res.dataset) {
+        state.dataset = res.dataset;
+        if (boxPasteArea) boxPasteArea.style.display = "none";
+        if (btnTogglePaste) btnTogglePaste.textContent = "Paste Raw Text";
+        updateTable();
+        recompute();
+      } else {
+        alert("Failed to parse content: " + (res.errorMessage || "Unknown error."));
+      }
+    });
+  }
+  setupFileInput(fileInput, () => state.dataset.meanIncome || 1e4, (res) => {
+    if (res.success && res.dataset) {
+      state.dataset = res.dataset;
+      updateTable();
+      recompute();
+    } else {
+      alert("File error: " + (res.errorMessage || "Could not read data."));
+    }
   });
   window.addEventListener("resize", () => {
     renderLorenzChart(canvasLorenz, state);
     renderDerivativeChart(canvasDerivative, state);
   });
+  if (inputMeanIncome) inputMeanIncome.value = String(Math.round(state.dataset.meanIncome || 1e4));
+  if (inputPoverty) inputPoverty.value = String(Math.round(state.povertyLine));
+  if (numSplice) numSplice.value = state.splicingThreshold.toFixed(2);
+  if (labelCurrency) labelCurrency.textContent = state.currency;
   updateTable();
   recompute();
   if (typeof document !== "undefined") {

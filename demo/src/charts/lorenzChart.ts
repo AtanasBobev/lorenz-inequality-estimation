@@ -17,18 +17,18 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
 
   ctx.clearRect(0, 0, w, h);
 
-  const pad = { left: 50, right: 25, top: 25, bottom: 40 };
+  const pad = { left: 52, right: 28, top: 24, bottom: 44 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
 
   const toX = (p: number) => pad.left + p * plotW;
   const toY = (L: number) => pad.top + (1 - L) * plotH;
 
-  // Grid lines
-  ctx.strokeStyle = "#e5e7eb";
+  // Grid lines (subtle monochrome)
+  ctx.strokeStyle = "#e9ecef";
   ctx.lineWidth = 1;
   ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-  ctx.fillStyle = "#6b7280";
+  ctx.fillStyle = "#6c757d";
   ctx.textAlign = "center";
 
   for (let i = 0; i <= 5; i++) {
@@ -54,16 +54,16 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
 
   // Axis Labels
   ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-  ctx.fillStyle = "#374151";
-  ctx.fillText("Cumulative population share p", pad.left + plotW / 2, h - 8);
+  ctx.fillStyle = "#212529";
+  ctx.fillText("Cumulative population share (p)", pad.left + plotW / 2, h - 10);
 
   ctx.save();
-  ctx.translate(14, pad.top + plotH / 2);
+  ctx.translate(15, pad.top + plotH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.fillText("Cumulative income share L(p)", 0, 0);
   ctx.restore();
 
-  // Shaded Gastwirth envelope
+  // Shaded Gastwirth Bounding Envelope (subtle neutral fill)
   const pts = state.dataset.points;
   if (pts.length >= 2) {
     ctx.beginPath();
@@ -74,13 +74,20 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.lineTo(toX(1), toY(1));
     ctx.lineTo(toX(0), toY(0));
     ctx.closePath();
-    ctx.fillStyle = "rgba(224, 231, 255, 0.5)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
     ctx.fill();
+
+    // Boundary stroke of Gastwirth lower bound (secant chords)
+    ctx.strokeStyle = "#adb5bd";
+    ctx.lineWidth = 1.0;
+    ctx.setLineDash([2, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
-  // 45-degree Line of Perfect Equality
-  ctx.strokeStyle = "#9ca3af";
-  ctx.setLineDash([5, 5]);
+  // Line of Perfect Equality (45-degree reference)
+  ctx.strokeStyle = "#adb5bd";
+  ctx.setLineDash([4, 4]);
   ctx.lineWidth = 1.2;
   ctx.beginPath();
   ctx.moveTo(toX(0), toY(0));
@@ -88,10 +95,10 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Continuous Lorenz Curve
-  if (state.currentModel) {
-    ctx.strokeStyle = "#1d4ed8";
-    ctx.lineWidth = 2.2;
+  // Continuous Lorenz Curve (Solid Deep Black)
+  if (state.currentModel && state.validation.isValid) {
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 2.4;
     ctx.beginPath();
     const steps = 200;
     for (let i = 0; i <= steps; i++) {
@@ -105,57 +112,74 @@ export function renderLorenzChart(canvas: HTMLCanvasElement | null, state: AppSt
     ctx.stroke();
   }
 
-  // Splicing threshold indicator
-  if (state.modelType === "hybrid") {
-    const xS = toX(state.splicingThreshold);
-    const yS = toY(
-      state.currentModel
-        ? state.currentModel.evaluate(state.splicingThreshold)
-        : state.splicingThreshold
-    );
+  // Splicing Threshold marker (p*)
+  if (state.modelType === "hybrid" && state.currentModel && state.validation.isValid) {
+    const pStar = state.splicingThreshold;
+    const lStar = state.currentModel.evaluate(pStar);
+    const xStar = toX(pStar);
+    const yStar = toY(lStar);
 
-    ctx.fillStyle = "#7c3aed";
-    ctx.beginPath();
-    ctx.arc(xS, yS, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
-
-  // Poverty headcount crosshair
-  if (state.currentHeadcount > 0 && state.currentHeadcount < 1) {
-    const pZ = state.currentHeadcount;
-    const lZ = state.currentModel ? state.currentModel.evaluate(pZ) : 0;
-    const xZ = toX(pZ);
-    const yZ = toY(lZ);
-
+    ctx.strokeStyle = "#6c757d";
     ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = "#dc2626";
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.0;
     ctx.beginPath();
-    ctx.moveTo(xZ, pad.top + plotH);
-    ctx.lineTo(xZ, yZ);
-    ctx.lineTo(pad.left, yZ);
+    ctx.moveTo(xStar, pad.top);
+    ctx.lineTo(xStar, pad.top + plotH);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = "#dc2626";
+    // Diamond marker for splicing point
+    const s = 5.5;
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#212529";
+    ctx.lineWidth = 2.0;
     ctx.beginPath();
-    ctx.arc(xZ, yZ, 5, 0, Math.PI * 2);
+    ctx.moveTo(xStar, yStar - s);
+    ctx.lineTo(xStar + s, yStar);
+    ctx.lineTo(xStar, yStar + s);
+    ctx.lineTo(xStar - s, yStar);
+    ctx.closePath();
     ctx.fill();
+    ctx.stroke();
   }
 
-  // Quantile Knots
-  for (let i = 0; i < pts.length; i++) {
-    const x = toX(pts[i].populationShare);
-    const y = toY(pts[i].incomeShare);
-    ctx.fillStyle = "#1e293b";
+  // Poverty Headcount marker (H)
+  if (state.currentHeadcount > 0 && state.currentHeadcount < 1 && state.currentModel && state.validation.isValid) {
+    const hP = state.currentHeadcount;
+    const hL = state.currentModel.evaluate(hP);
+    const xH = toX(hP);
+    const yH = toY(hL);
+
+    ctx.strokeStyle = "#495057";
+    ctx.setLineDash([2, 2]);
+    ctx.lineWidth = 1.0;
     ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.5;
+    ctx.moveTo(xH, pad.top);
+    ctx.lineTo(xH, pad.top + plotH);
     ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Cross square marker for headcount
+    ctx.fillStyle = "#212529";
+    ctx.fillRect(xH - 3.5, yH - 3.5, 7, 7);
+  }
+
+  // Discrete Quantile Knots (Circles)
+  for (const pt of pts) {
+    const x = toX(pt.populationShare);
+    const y = toY(pt.incomeShare);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#111827";
+    ctx.beginPath();
+    ctx.arc(x, y, 2.0, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
