@@ -22,12 +22,12 @@ export const BULGARIAN_NSI_2022: CensusBenchmarkEntry = {
     year: 2022,
     agency: "National Statistical Institute (NSI)",
     officialGini: 0.384,
-    povertyLine: 6048,
-    currency: "BGN",
-    notes: "Official NSI Household Budget Survey 2022 decile dataset."
+    povertyLine: 3092,
+    currency: "EUR",
+    notes: "Official NSI Household Budget Survey 2022 decile dataset (EUR equivalents)."
   },
   dataset: {
-    meanIncome: 9842,
+    meanIncome: 5032,
     points: [
       { populationShare: 0.0, incomeShare: 0.0 },
       { populationShare: 0.1, incomeShare: 0.021 },
@@ -51,12 +51,12 @@ export const BULGARIAN_NSI_QUINTILES_2022: CensusBenchmarkEntry = {
     year: 2022,
     agency: "National Statistical Institute (NSI)",
     officialGini: 0.384,
-    povertyLine: 6048,
-    currency: "BGN",
-    notes: "Aggregated 5-quintile format from summary statistical yearbooks."
+    povertyLine: 3092,
+    currency: "EUR",
+    notes: "Aggregated 5-quintile format from summary statistical yearbooks (EUR equivalents)."
   },
   dataset: {
-    meanIncome: 9842,
+    meanIncome: 5032,
     points: [
       { populationShare: 0.0, incomeShare: 0.0 },
       { populationShare: 0.2, incomeShare: 0.059 },

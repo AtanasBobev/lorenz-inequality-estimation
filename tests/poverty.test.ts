@@ -52,7 +52,7 @@ describe("Poverty Headcount Estimation via Hybrid Root-Finding", () => {
     expect(recoveredIncome).toBeCloseTo(marginalIncomeAt25, 2);
   });
 
-  it("evaluates Bulgarian NSI 2022 official poverty threshold (504 BGN/month)", () => {
+  it("evaluates Bulgarian NSI 2022 official poverty threshold (258 EUR/month, 3,092 EUR/year)", () => {
     const nsiModel = new PchipLorenzCurve(BULGARIAN_NSI_2022.dataset);
     const nsiEngine = new InequalityEngine(
       nsiModel,
@@ -60,15 +60,15 @@ describe("Poverty Headcount Estimation via Hybrid Root-Finding", () => {
       new BisectionSolver()
     );
 
-    // Official annual poverty line = 6,048 BGN (504 BGN/month)
+    // Official annual poverty line = 3,092 EUR (258 EUR/month)
     const headcount = nsiEngine.getPovertyHeadcount(BULGARIAN_NSI_2022.metadata.povertyLine);
 
-    // On the decile distribution, marginal income reaches 6,048 BGN at ~32.9% of the population
+    // On the decile distribution, marginal income reaches 3,092 EUR at ~32.9% of the population
     expect(headcount).toBeGreaterThan(0.28);
     expect(headcount).toBeLessThan(0.36);
     expect(headcount).toBeCloseTo(0.329, 2);
 
-    // Verify root condition: y(p*) = mu * L'(p*) = 6048
+    // Verify root condition: y(p*) = mu * L'(p*) = 3092 EUR
     const marginalIncome = BULGARIAN_NSI_2022.dataset.meanIncome * nsiModel.derivative(headcount);
     expect(marginalIncome).toBeCloseTo(BULGARIAN_NSI_2022.metadata.povertyLine, 1);
   });
