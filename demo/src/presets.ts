@@ -50,31 +50,31 @@ export function loadPreset(key: string): PresetResult {
           meanIncome: US_CENSUS_CPS_2022.dataset.meanIncome,
           points: US_CENSUS_CPS_2022.dataset.points.map((pt) => ({ ...pt }))
         },
-        poverty: US_CENSUS_CPS_2022.metadata.povertyLine, // 29678 USD
-        currency: "USD"
+        poverty: US_CENSUS_CPS_2022.metadata.povertyLine, // 28180 EUR
+        currency: "EUR"
       };
     case "syn_lognormal": {
       const syn = new LogNormalDistribution(0.7);
       return {
-        dataset: syn.sampleQuantiles(10, 50000),
-        poverty: 30000,
-        currency: "USD"
+        dataset: syn.sampleQuantiles(10, 25000),
+        poverty: 12000,
+        currency: "EUR"
       };
     }
     case "syn_singh_maddala": {
       const syn = new SinghMaddalaDistribution(1.5, 2.8);
       return {
-        dataset: syn.sampleQuantiles(10, 45000),
-        poverty: 25000,
-        currency: "USD"
+        dataset: syn.sampleQuantiles(10, 24000),
+        poverty: 11500,
+        currency: "EUR"
       };
     }
     case "syn_dagum": {
       const syn = new DagumDistribution(3.5, 0.7);
       return {
-        dataset: syn.sampleQuantiles(10, 48000),
-        poverty: 27000,
-        currency: "USD"
+        dataset: syn.sampleQuantiles(10, 26000),
+        poverty: 12500,
+        currency: "EUR"
       };
     }
     default:

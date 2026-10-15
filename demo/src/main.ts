@@ -52,6 +52,7 @@ const numSplice = document.getElementById("numSplice") as HTMLInputElement | nul
 const inputMeanIncome = document.getElementById("inputMeanIncome") as HTMLInputElement | null;
 const inputPoverty = document.getElementById("inputPoverty") as HTMLInputElement | null;
 const labelCurrency = document.getElementById("labelCurrency") as HTMLElement | null;
+const labelPovertyCurrency = document.getElementById("labelPovertyCurrency") as HTMLElement | null;
 const fileInput = document.getElementById("fileInput") as HTMLInputElement | null;
 const tableBody = document.getElementById("quantilesTableBody") as HTMLElement | null;
 const btnAddRow = document.getElementById("btnAddRow") as HTMLButtonElement | null;
@@ -234,6 +235,7 @@ if (selectPreset) {
     if (inputMeanIncome)
       inputMeanIncome.value = String(Math.round(state.dataset.meanIncome || 10000));
     if (labelCurrency) labelCurrency.textContent = state.currency;
+    if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
 
     updateTable();
     recompute();
@@ -350,6 +352,7 @@ if (inputMeanIncome) inputMeanIncome.value = String(Math.round(state.dataset.mea
 if (inputPoverty) inputPoverty.value = String(Math.round(state.povertyLine));
 if (numSplice) numSplice.value = state.splicingThreshold.toFixed(2);
 if (labelCurrency) labelCurrency.textContent = state.currency;
+if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
 
 updateTable();
 recompute();

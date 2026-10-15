@@ -366,12 +366,13 @@
       year: 2022,
       agency: "US Census Bureau",
       officialGini: 0.488,
-      povertyLine: 29678,
-      currency: "USD",
-      notes: "Current Population Survey Annual Social and Economic Supplement 2022."
+      povertyLine: 28180,
+      currency: "EUR",
+      notes:
+        "Current Population Survey Annual Social and Economic Supplement 2022 (converted to EUR @ 1.053 USD/EUR)."
     },
     dataset: {
-      meanIncome: 106400,
+      meanIncome: 101e3,
       points: [
         { populationShare: 0, incomeShare: 0 },
         { populationShare: 0.1, incomeShare: 0.012 },
@@ -1389,31 +1390,31 @@
             points: US_CENSUS_CPS_2022.dataset.points.map((pt) => ({ ...pt }))
           },
           poverty: US_CENSUS_CPS_2022.metadata.povertyLine,
-          // 29678 USD
-          currency: "USD"
+          // 28180 EUR
+          currency: "EUR"
         };
       case "syn_lognormal": {
         const syn = new LogNormalDistribution(0.7);
         return {
-          dataset: syn.sampleQuantiles(10, 5e4),
-          poverty: 3e4,
-          currency: "USD"
+          dataset: syn.sampleQuantiles(10, 25e3),
+          poverty: 12e3,
+          currency: "EUR"
         };
       }
       case "syn_singh_maddala": {
         const syn = new SinghMaddalaDistribution(1.5, 2.8);
         return {
-          dataset: syn.sampleQuantiles(10, 45e3),
-          poverty: 25e3,
-          currency: "USD"
+          dataset: syn.sampleQuantiles(10, 24e3),
+          poverty: 11500,
+          currency: "EUR"
         };
       }
       case "syn_dagum": {
         const syn = new DagumDistribution(3.5, 0.7);
         return {
-          dataset: syn.sampleQuantiles(10, 48e3),
-          poverty: 27e3,
-          currency: "USD"
+          dataset: syn.sampleQuantiles(10, 26e3),
+          poverty: 12500,
+          currency: "EUR"
         };
       }
       default:
@@ -2008,6 +2009,7 @@
   var inputMeanIncome = document.getElementById("inputMeanIncome");
   var inputPoverty = document.getElementById("inputPoverty");
   var labelCurrency = document.getElementById("labelCurrency");
+  var labelPovertyCurrency = document.getElementById("labelPovertyCurrency");
   var fileInput = document.getElementById("fileInput");
   var tableBody = document.getElementById("quantilesTableBody");
   var btnAddRow = document.getElementById("btnAddRow");
@@ -2162,6 +2164,7 @@
       if (inputMeanIncome)
         inputMeanIncome.value = String(Math.round(state.dataset.meanIncome || 1e4));
       if (labelCurrency) labelCurrency.textContent = state.currency;
+      if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
       updateTable();
       recompute();
     });
@@ -2263,6 +2266,7 @@
   if (inputPoverty) inputPoverty.value = String(Math.round(state.povertyLine));
   if (numSplice) numSplice.value = state.splicingThreshold.toFixed(2);
   if (labelCurrency) labelCurrency.textContent = state.currency;
+  if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
   updateTable();
   recompute();
   if (typeof document !== "undefined") {

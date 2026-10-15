@@ -104,12 +104,13 @@ export const US_CENSUS_CPS_2022: CensusBenchmarkEntry = {
     year: 2022,
     agency: "US Census Bureau",
     officialGini: 0.488,
-    povertyLine: 29678,
-    currency: "USD",
-    notes: "Current Population Survey Annual Social and Economic Supplement 2022."
+    povertyLine: 28180,
+    currency: "EUR",
+    notes:
+      "Current Population Survey Annual Social and Economic Supplement 2022 (converted to EUR @ 1.053 USD/EUR)."
   },
   dataset: {
-    meanIncome: 106400,
+    meanIncome: 101000,
     points: [
       { populationShare: 0.0, incomeShare: 0.0 },
       { populationShare: 0.1, incomeShare: 0.012 },
