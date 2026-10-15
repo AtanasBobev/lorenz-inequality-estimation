@@ -155,14 +155,8 @@ export function validateEconomicParameters(
     }
   }
 
-  if (isNaN(splicePoint) || splicePoint < 0.5 || splicePoint > 0.98) {
+  if (isNaN(splicePoint) || !isFinite(splicePoint) || splicePoint < 0.5 || splicePoint > 0.98) {
     spliceError = "Pareto splicing threshold p* must lie between 0.50 and 0.98.";
-  } else if (points.length >= 3) {
-    const minInterior = points[1].populationShare;
-    const maxInterior = points[points.length - 2].populationShare;
-    if (splicePoint < minInterior || splicePoint > maxInterior + 0.05) {
-      spliceError = `Splicing point p* (${splicePoint.toFixed(2)}) should fall within empirical interior knots [${minInterior.toFixed(2)}, ${maxInterior.toFixed(2)}].`;
-    }
   }
 
   return {

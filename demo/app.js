@@ -1886,14 +1886,8 @@
         povertyLineWarning = `Poverty line is less than 5% of mean income. Headcount will approach 0%.`;
       }
     }
-    if (isNaN(splicePoint) || splicePoint < 0.5 || splicePoint > 0.98) {
+    if (isNaN(splicePoint) || !isFinite(splicePoint) || splicePoint < 0.5 || splicePoint > 0.98) {
       spliceError = "Pareto splicing threshold p* must lie between 0.50 and 0.98.";
-    } else if (points.length >= 3) {
-      const minInterior = points[1].populationShare;
-      const maxInterior = points[points.length - 2].populationShare;
-      if (splicePoint < minInterior || splicePoint > maxInterior + 0.05) {
-        spliceError = `Splicing point p* (${splicePoint.toFixed(2)}) should fall within empirical interior knots [${minInterior.toFixed(2)}, ${maxInterior.toFixed(2)}].`;
-      }
     }
     return {
       meanIncomeError,
@@ -2211,8 +2205,36 @@
   if (btnAutoRepair) {
     btnAutoRepair.addEventListener("click", () => {
       state.dataset.points = autoRepairQuantiles(state.dataset.points);
+      if (isNaN(state.splicingThreshold) || state.splicingThreshold < 0.6 || state.splicingThreshold > 0.95) {
+        syncSplicingThreshold(0.8);
+      }
+      if (isNaN(state.dataset.meanIncome) || state.dataset.meanIncome <= 0) {
+        const defaultMean = 5032;
+        state.dataset.meanIncome = defaultMean;
+        if (inputMeanIncome) {
+          inputMeanIncome.value = String(defaultMean);
+          inputMeanIncome.setAttribute("value", String(defaultMean));
+        }
+      }
+      if (isNaN(state.povertyLine) || state.povertyLine <= 0) {
+        const defaultPov = 3092;
+        state.povertyLine = defaultPov;
+        if (inputPoverty) {
+          inputPoverty.value = String(defaultPov);
+          inputPoverty.setAttribute("value", String(defaultPov));
+        }
+      }
       updateTable();
       recompute();
+      const origText = btnAutoRepair.textContent || "Auto-Repair Knots";
+      btnAutoRepair.textContent = "\u2713 Repaired";
+      btnAutoRepair.classList.add("btn-outline-light");
+      btnAutoRepair.classList.remove("btn-dark");
+      setTimeout(() => {
+        btnAutoRepair.textContent = origText;
+        btnAutoRepair.classList.remove("btn-outline-light");
+        btnAutoRepair.classList.add("btn-dark");
+      }, 1200);
     });
   }
   if (btnTogglePaste && boxPasteArea) {

@@ -337,8 +337,48 @@ if (btnAddRow) {
 if (btnAutoRepair) {
   btnAutoRepair.addEventListener("click", () => {
     state.dataset.points = autoRepairQuantiles(state.dataset.points);
+
+    // If splicing threshold is outside valid range, clamp it into [0.60, 0.95]
+    if (
+      isNaN(state.splicingThreshold) ||
+      state.splicingThreshold < 0.6 ||
+      state.splicingThreshold > 0.95
+    ) {
+      syncSplicingThreshold(0.8);
+    }
+
+    // If mean income or poverty line are invalid, restore to safe defaults
+    if (isNaN(state.dataset.meanIncome) || state.dataset.meanIncome <= 0) {
+      const defaultMean = 5032;
+      state.dataset.meanIncome = defaultMean;
+      if (inputMeanIncome) {
+        inputMeanIncome.value = String(defaultMean);
+        inputMeanIncome.setAttribute("value", String(defaultMean));
+      }
+    }
+
+    if (isNaN(state.povertyLine) || state.povertyLine <= 0) {
+      const defaultPov = 3092;
+      state.povertyLine = defaultPov;
+      if (inputPoverty) {
+        inputPoverty.value = String(defaultPov);
+        inputPoverty.setAttribute("value", String(defaultPov));
+      }
+    }
+
     updateTable();
     recompute();
+
+    // Visual button feedback
+    const origText = btnAutoRepair.textContent || "Auto-Repair Knots";
+    btnAutoRepair.textContent = "✓ Repaired";
+    btnAutoRepair.classList.add("btn-outline-light");
+    btnAutoRepair.classList.remove("btn-dark");
+    setTimeout(() => {
+      btnAutoRepair.textContent = origText;
+      btnAutoRepair.classList.remove("btn-outline-light");
+      btnAutoRepair.classList.add("btn-dark");
+    }, 1200);
   });
 }
 
