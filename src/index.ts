@@ -1,25 +1,10 @@
-// Public API exports for the library
+// Public API exports for the library organized by submodules
 
-export * from "./core/types.js";
-export * from "./core/LorenzModel.js";
-export * from "./core/NumericalIntegrator.js";
-export * from "./core/RootFinder.js";
-export * from "./core/InequalityEngine.js";
-
-export * from "./interpolation/PchipLorenzCurve.js";
-export * from "./interpolation/CubicSplineLorenzCurve.js";
-
-export * from "./tail/ParetoLorenzCurve.js";
-export * from "./tail/HybridLorenzCurve.js";
-
-export * from "./integration/TrapezoidalIntegrator.js";
-export * from "./integration/SimpsonsIntegrator.js";
-
-export * from "./solvers/NewtonRaphsonSolver.js";
-export * from "./solvers/BisectionSolver.js";
-export * from "./solvers/TridiagonalSolver.js";
-
-export * from "./regression/ConsumptionRegressor.js";
-
-export * from "./data/censusDatasets.js";
-export * from "./simulation/syntheticDistributions.js";
+export * from "./core/index.js";
+export * from "./data/index.js";
+export * from "./integration/index.js";
+export * from "./interpolation/index.js";
+export * from "./regression/index.js";
+export * from "./simulation/index.js";
+export * from "./solvers/index.js";
+export * from "./tail/index.js";

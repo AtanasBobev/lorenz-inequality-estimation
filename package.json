@@ -5,8 +5,47 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./data": {
+      "types": "./dist/data/index.d.ts",
+      "import": "./dist/data/index.js"
+    },
+    "./integration": {
+      "types": "./dist/integration/index.d.ts",
+      "import": "./dist/integration/index.js"
+    },
+    "./interpolation": {
+      "types": "./dist/interpolation/index.d.ts",
+      "import": "./dist/interpolation/index.js"
+    },
+    "./regression": {
+      "types": "./dist/regression/index.d.ts",
+      "import": "./dist/regression/index.js"
+    },
+    "./simulation": {
+      "types": "./dist/simulation/index.d.ts",
+      "import": "./dist/simulation/index.js"
+    },
+    "./solvers": {
+      "types": "./dist/solvers/index.d.ts",
+      "import": "./dist/solvers/index.js"
+    },
+    "./tail": {
+      "types": "./dist/tail/index.d.ts",
+      "import": "./dist/tail/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
+    "build:demo": "esbuild demo/src/main.ts --bundle --format=iife --outfile=demo/app.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
