@@ -14,4 +14,7 @@ export interface AppState {
   currentGastwirth: GastwirthCertificate;
   validation: ValidationReport;
   paramValidation: ParameterValidation;
+  benchmarkGini: number | null;
+  benchmarkLabel: string | null;
+  benchmarkType: "synthetic" | "empirical" | null;
 }

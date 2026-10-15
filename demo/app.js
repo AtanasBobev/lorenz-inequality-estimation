@@ -1339,7 +1339,10 @@
           },
           poverty: BULGARIAN_NSI_2022.metadata.povertyLine,
           // 3092 EUR
-          currency: "EUR"
+          currency: "EUR",
+          benchmarkGini: BULGARIAN_NSI_2022.metadata.officialGini,
+          benchmarkLabel: "NSI 2022 HBS Microdata",
+          benchmarkType: "empirical"
         };
       case "bg_nsi_quintiles":
         return {
@@ -1349,7 +1352,10 @@
           },
           poverty: BULGARIAN_NSI_QUINTILES_2022.metadata.povertyLine,
           // 3092 EUR
-          currency: "EUR"
+          currency: "EUR",
+          benchmarkGini: BULGARIAN_NSI_QUINTILES_2022.metadata.officialGini,
+          benchmarkLabel: "NSI 2022 Summary Deciles",
+          benchmarkType: "empirical"
         };
       case "eurostat_2022":
         return {
@@ -1359,7 +1365,10 @@
           },
           poverty: EUROSTAT_EU27_2022.metadata.povertyLine,
           // 12300 EUR
-          currency: "EUR"
+          currency: "EUR",
+          benchmarkGini: EUROSTAT_EU27_2022.metadata.officialGini,
+          benchmarkLabel: "Eurostat EU-SILC (EU-27)",
+          benchmarkType: "empirical"
         };
       case "us_census_2022":
         return {
@@ -1369,22 +1378,31 @@
           },
           poverty: US_CENSUS_CPS_2022.metadata.povertyLine,
           // 28180 EUR
-          currency: "EUR"
+          currency: "EUR",
+          benchmarkGini: US_CENSUS_CPS_2022.metadata.officialGini,
+          benchmarkLabel: "US Census Bureau CPS ASEC",
+          benchmarkType: "empirical"
         };
       case "syn_lognormal": {
         const syn = new LogNormalDistribution(0.7);
         return {
           dataset: syn.sampleQuantiles(10, 25e3),
           poverty: 12e3,
-          currency: "EUR"
+          currency: "EUR",
+          benchmarkGini: syn.theoreticalGini,
+          benchmarkLabel: "Exact Closed-Form (erf(\u03C3/2))",
+          benchmarkType: "synthetic"
         };
       }
       case "syn_singh_maddala": {
-        const syn = new SinghMaddalaDistribution(1.5, 2.8);
+        const syn = new SinghMaddalaDistribution(2.8, 1.7);
         return {
           dataset: syn.sampleQuantiles(10, 24e3),
           poverty: 11500,
-          currency: "EUR"
+          currency: "EUR",
+          benchmarkGini: syn.theoreticalGini,
+          benchmarkLabel: "Exact Analytical (Beta/Gamma)",
+          benchmarkType: "synthetic"
         };
       }
       case "syn_dagum": {
@@ -1392,7 +1410,10 @@
         return {
           dataset: syn.sampleQuantiles(10, 26e3),
           poverty: 12500,
-          currency: "EUR"
+          currency: "EUR",
+          benchmarkGini: syn.theoreticalGini,
+          benchmarkLabel: "Exact Analytical (Beta/Gamma)",
+          benchmarkType: "synthetic"
         };
       }
       default:
@@ -1402,7 +1423,10 @@
             points: BULGARIAN_NSI_2022.dataset.points.map((pt) => ({ ...pt }))
           },
           poverty: BULGARIAN_NSI_2022.metadata.povertyLine,
-          currency: "EUR"
+          currency: "EUR",
+          benchmarkGini: BULGARIAN_NSI_2022.metadata.officialGini,
+          benchmarkLabel: "Bulgarian NSI 2022",
+          benchmarkType: "empirical"
         };
     }
   }
@@ -1958,7 +1982,10 @@
       povertyLineWarning: null,
       spliceError: null,
       isValid: true
-    }
+    },
+    benchmarkGini: initialPreset.benchmarkGini,
+    benchmarkLabel: initialPreset.benchmarkLabel,
+    benchmarkType: initialPreset.benchmarkType
   };
   var selectPreset = document.getElementById("selectPreset");
   var selectModelType = document.getElementById("selectModelType");
@@ -1986,6 +2013,10 @@
   var outSen = document.getElementById("outSen");
   var outHeadcount = document.getElementById("outHeadcount");
   var outAlpha = document.getElementById("outAlpha");
+  var outBenchmarkGini = document.getElementById("outBenchmarkGini");
+  var outErrorGini = document.getElementById("outErrorGini");
+  var labelBenchmarkGini = document.getElementById("labelBenchmarkGini");
+  var labelErrorGini = document.getElementById("labelErrorGini");
   var badgeStatus = document.getElementById("badgeStatus");
   var modelDescription = document.getElementById("modelDescription");
   function updateModelDescription() {
@@ -2040,6 +2071,30 @@
           outAlpha.textContent = state.currentModel.getTailAlpha().toFixed(2);
         } else {
           outAlpha.textContent = "N/A";
+        }
+      }
+      if (outBenchmarkGini && labelBenchmarkGini && outErrorGini && labelErrorGini) {
+        if (state.benchmarkGini !== null) {
+          const trueG = state.benchmarkGini;
+          const diff = result.metrics.giniIndex - trueG;
+          const relErr = Math.abs(diff) / trueG * 100;
+          const sign = diff >= 0 ? "+" : "";
+          if (state.benchmarkType === "synthetic") {
+            labelBenchmarkGini.textContent = "Analytical Gini (G*)";
+            outBenchmarkGini.textContent = `${trueG.toFixed(4)}`;
+            labelErrorGini.textContent = "Estimation Error (|\u0394G|)";
+            outErrorGini.textContent = `${sign}${diff.toFixed(4)} (${relErr.toFixed(2)}%)`;
+          } else {
+            labelBenchmarkGini.textContent = "Official Agency Gini";
+            outBenchmarkGini.textContent = `${trueG.toFixed(4)}`;
+            labelErrorGini.textContent = "Disparity vs Official";
+            outErrorGini.textContent = `${sign}${diff.toFixed(4)} (${relErr.toFixed(2)}%)`;
+          }
+        } else {
+          labelBenchmarkGini.textContent = "Benchmark Ground Truth";
+          outBenchmarkGini.textContent = "N/A (Custom Data)";
+          labelErrorGini.textContent = "Gastwirth Max Error Bound";
+          outErrorGini.textContent = `\xB1${state.currentGastwirth.maxError.toFixed(4)}`;
         }
       }
       if (badgeStatus) {
@@ -2126,6 +2181,9 @@
     };
     state.povertyLine = loaded.poverty;
     state.currency = loaded.currency;
+    state.benchmarkGini = loaded.benchmarkGini;
+    state.benchmarkLabel = loaded.benchmarkLabel;
+    state.benchmarkType = loaded.benchmarkType;
     const meanVal = String(Math.round(state.dataset.meanIncome || 1e4));
     const povVal = String(Math.round(state.povertyLine));
     if (inputMeanIncome) {
@@ -2250,6 +2308,9 @@
       const res = parseRawContent(content, "manual_entry.csv", state.dataset.meanIncome || 1e4);
       if (res.success && res.dataset) {
         state.dataset = res.dataset;
+        state.benchmarkGini = null;
+        state.benchmarkLabel = null;
+        state.benchmarkType = null;
         if (boxPasteArea) boxPasteArea.style.display = "none";
         if (btnTogglePaste) btnTogglePaste.textContent = "Paste Raw Text";
         updateTable();
@@ -2265,6 +2326,9 @@
     (res) => {
       if (res.success && res.dataset) {
         state.dataset = res.dataset;
+        state.benchmarkGini = null;
+        state.benchmarkLabel = null;
+        state.benchmarkType = null;
         updateTable();
         recompute();
       } else {

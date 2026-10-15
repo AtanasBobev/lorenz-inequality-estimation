@@ -41,7 +41,10 @@ const state: AppState = {
     povertyLineWarning: null,
     spliceError: null,
     isValid: true
-  }
+  },
+  benchmarkGini: initialPreset.benchmarkGini,
+  benchmarkLabel: initialPreset.benchmarkLabel,
+  benchmarkType: initialPreset.benchmarkType
 };
 
 // DOM Elements
@@ -74,6 +77,10 @@ const outPalma = document.getElementById("outPalma") as HTMLElement | null;
 const outSen = document.getElementById("outSen") as HTMLElement | null;
 const outHeadcount = document.getElementById("outHeadcount") as HTMLElement | null;
 const outAlpha = document.getElementById("outAlpha") as HTMLElement | null;
+const outBenchmarkGini = document.getElementById("outBenchmarkGini") as HTMLElement | null;
+const outErrorGini = document.getElementById("outErrorGini") as HTMLElement | null;
+const labelBenchmarkGini = document.getElementById("labelBenchmarkGini") as HTMLElement | null;
+const labelErrorGini = document.getElementById("labelErrorGini") as HTMLElement | null;
 const badgeStatus = document.getElementById("badgeStatus") as HTMLElement | null;
 const modelDescription = document.getElementById("modelDescription") as HTMLElement | null;
 
@@ -141,6 +148,32 @@ function recompute(): void {
         outAlpha.textContent = state.currentModel.getTailAlpha().toFixed(2);
       } else {
         outAlpha.textContent = "N/A";
+      }
+    }
+
+    if (outBenchmarkGini && labelBenchmarkGini && outErrorGini && labelErrorGini) {
+      if (state.benchmarkGini !== null) {
+        const trueG = state.benchmarkGini;
+        const diff = result.metrics.giniIndex - trueG;
+        const relErr = (Math.abs(diff) / trueG) * 100;
+        const sign = diff >= 0 ? "+" : "";
+
+        if (state.benchmarkType === "synthetic") {
+          labelBenchmarkGini.textContent = "Analytical Gini (G*)";
+          outBenchmarkGini.textContent = `${trueG.toFixed(4)}`;
+          labelErrorGini.textContent = "Estimation Error (|ΔG|)";
+          outErrorGini.textContent = `${sign}${diff.toFixed(4)} (${relErr.toFixed(2)}%)`;
+        } else {
+          labelBenchmarkGini.textContent = "Official Agency Gini";
+          outBenchmarkGini.textContent = `${trueG.toFixed(4)}`;
+          labelErrorGini.textContent = "Disparity vs Official";
+          outErrorGini.textContent = `${sign}${diff.toFixed(4)} (${relErr.toFixed(2)}%)`;
+        }
+      } else {
+        labelBenchmarkGini.textContent = "Benchmark Ground Truth";
+        outBenchmarkGini.textContent = "N/A (Custom Data)";
+        labelErrorGini.textContent = "Gastwirth Max Error Bound";
+        outErrorGini.textContent = `±${state.currentGastwirth.maxError.toFixed(4)}`;
       }
     }
 
@@ -245,6 +278,9 @@ function applyPreset(key: string): void {
   };
   state.povertyLine = loaded.poverty;
   state.currency = loaded.currency;
+  state.benchmarkGini = loaded.benchmarkGini;
+  state.benchmarkLabel = loaded.benchmarkLabel;
+  state.benchmarkType = loaded.benchmarkType;
 
   const meanVal = String(Math.round(state.dataset.meanIncome || 10000));
   const povVal = String(Math.round(state.povertyLine));
@@ -396,6 +432,9 @@ if (btnApplyPaste && txtRawInput) {
     const res = parseRawContent(content, "manual_entry.csv", state.dataset.meanIncome || 10000);
     if (res.success && res.dataset) {
       state.dataset = res.dataset;
+      state.benchmarkGini = null;
+      state.benchmarkLabel = null;
+      state.benchmarkType = null;
       if (boxPasteArea) boxPasteArea.style.display = "none";
       if (btnTogglePaste) btnTogglePaste.textContent = "Paste Raw Text";
       updateTable();
@@ -412,6 +451,9 @@ setupFileInput(
   (res) => {
     if (res.success && res.dataset) {
       state.dataset = res.dataset;
+      state.benchmarkGini = null;
+      state.benchmarkLabel = null;
+      state.benchmarkType = null;
       updateTable();
       recompute();
     } else {
