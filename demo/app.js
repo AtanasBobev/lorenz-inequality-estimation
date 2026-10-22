@@ -1786,7 +1786,7 @@
     } catch (err) {
       return {
         success: false,
-        errorMessage: err.message || "Failed to parse quantile data."
+        errorMessage: err instanceof Error ? err.message : "Failed to parse quantile data."
       };
     }
   }

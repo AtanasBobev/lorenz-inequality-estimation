@@ -1,4 +1,4 @@
-import { QuantileDataset, GastwirthCertificate } from "../../src/index.js";
+import { LorenzModel, QuantileDataset, GastwirthCertificate } from "../../src/index.js";
 import { ValidationReport, ParameterValidation } from "./validation.js";
 
 export type ModelType = "hybrid" | "pchip" | "cubicspline";
@@ -9,7 +9,7 @@ export interface AppState {
   modelType: ModelType;
   splicingThreshold: number;
   povertyLine: number;
-  currentModel: any;
+  currentModel: LorenzModel | null;
   currentHeadcount: number;
   currentGastwirth: GastwirthCertificate;
   validation: ValidationReport;

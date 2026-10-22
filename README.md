@@ -67,12 +67,14 @@ src/
 ├── core/
 │   ├── LorenzModel.ts         # Abstract base class defining mathematical contracts
 │   ├── InequalityEngine.ts    # Facade orchestrating validation, fitting, and certification
+│   ├── GastwirthEstimator.ts  # Analytical Gastwirth lower/upper Gini bounds
 │   ├── NumericalIntegrator.ts # Quadrature strategy interface
 │   ├── RootFinder.ts          # Root-finding strategy interface
 │   └── types.ts               # Core domain interfaces and metric records
 ├── interpolation/
 │   ├── PchipLorenzCurve.ts       # Monotone Hermite splines with convexity cone repair
-│   └── CubicSplineLorenzCurve.ts # Classical C^2 cubic splines (baseline comparator)
+│   ├── CubicSplineLorenzCurve.ts # Classical C^2 cubic splines (baseline comparator)
+│   └── LinearLorenzCurve.ts      # Piecewise linear chordal interpolator
 ├── tail/
 │   ├── HybridLorenzCurve.ts   # C^1 continuity tail splicing and analytical alpha
 │   └── ParetoLorenzCurve.ts   # Pure Pareto distribution kernel
@@ -80,13 +82,24 @@ src/
 │   ├── SimpsonsIntegrator.ts    # Composite Simpson's 1/3 rule with parity enforcement
 │   └── TrapezoidalIntegrator.ts # Linear trapezoidal quadrature
 ├── solvers/
-│   ├── TridiagonalSolver.ts  # O(N) Thomas algorithm LU decomposition
+│   ├── TridiagonalSolver.ts   # O(N) Thomas algorithm LU decomposition
 │   ├── NewtonRaphsonSolver.ts # 1D quadratic root finding for headcount inversion
-│   └── BisectionSolver.ts    # Robust interval bracketing
+│   └── BisectionSolver.ts     # Robust interval bracketing
 ├── data/
-│   └── censusDatasets.ts     # Authentic census deciles (Bulgarian NSI, Eurostat, US CPS)
-└── simulation/
-    └── syntheticDistributions.ts # Analytical distributions (Log-Normal, Singh-Maddala, Dagum)
+│   ├── censusDatasets.ts      # Authentic census deciles (Bulgarian NSI, Eurostat, US CPS)
+│   └── DatasetParser.ts       # Multi-format CSV/TSV/JSON ingestion and normalization
+├── simulation/
+│   ├── LogNormalDistribution.ts     # Analytical Log-Normal benchmark distribution
+│   ├── SinghMaddalaDistribution.ts  # Analytical Singh-Maddala (Burr XII) distribution
+│   ├── DagumDistribution.ts         # Analytical Dagum (Burr III) distribution
+│   ├── syntheticDistributions.ts    # Synthetic distribution factory and registry
+│   └── specialFunctions.ts          # Lanczos log-Gamma, erf, and incomplete Beta routines
+└── regression/
+    └── ConsumptionRegressor.ts      # Ordinary least squares consumption regression
+demo/
+├── index.html                 # Interactive browser dashboard UI
+├── style.css                  # Responsive dashboard stylesheet
+└── src/                       # Modular client-side TypeScript visualization controllers
 ```
 
 ## Academic Context

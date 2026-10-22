@@ -35,5 +35,10 @@ describe("Boilerplate Architecture Smoke Test", () => {
     expect(bisection.name).toBe("Bisection Method");
     expect(engine).toBeDefined();
     expect(regressor).toBeDefined();
+
+    const fit = regressor.fitLinear([1000, 2000, 3000], [900, 1700, 2500]);
+    expect(fit.autonomousConsumption).toBeCloseTo(100, 8);
+    expect(fit.marginalPropensityToConsume).toBeCloseTo(0.8, 8);
+    expect(fit.rSquared).toBeCloseTo(1.0, 8);
   });
 });

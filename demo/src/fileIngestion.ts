@@ -26,10 +26,10 @@ export function parseRawContent(
 
     const dataset = DatasetParser.toQuantileDataset(parsed, meanIncome || 10000);
     return { success: true, dataset };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       success: false,
-      errorMessage: err.message || "Failed to parse quantile data."
+      errorMessage: err instanceof Error ? err.message : "Failed to parse quantile data."
     };
   }
 }

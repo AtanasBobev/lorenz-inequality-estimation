@@ -1,11 +1,16 @@
 import {
+  CubicSplineLorenzCurve,
   PchipLorenzCurve,
   HybridLorenzCurve,
   SimpsonsIntegrator,
   BisectionSolver,
+  NewtonRaphsonSolver,
   InequalityEngine,
   LogNormalDistribution,
+  SinghMaddalaDistribution,
+  DagumDistribution,
   BULGARIAN_NSI_2022,
+  BULGARIAN_NSI_QUINTILES_2022,
   EUROSTAT_EU27_2022,
   US_CENSUS_CPS_2022
 } from "../src/index.js";
@@ -52,7 +57,7 @@ function computeStats(operation: string, timesMs: number[]): BenchmarkStats {
 export function runFullBenchmarkSuite(iterations: number = 10000): void {
   console.log("===============================================================================");
   console.log(" LORENZ INEQUALITY ESTIMATION ENGINE - EMPIRICAL BENCHMARK SUITE");
-  console.log(` Executing ${iterations.toLocaleString()} iterations per benchmark benchmark test`);
+  console.log(` Executing ${iterations.toLocaleString()} iterations per benchmark test`);
   console.log("===============================================================================\n");
 
   const simpson = new SimpsonsIntegrator();
@@ -172,6 +177,138 @@ export function runFullBenchmarkSuite(iterations: number = 10000): void {
   }
   console.log(
     "---------------------------------------------------------------------------------\n"
+  );
+
+  // Section 3: Systematic Cross-Model Benchmark on Empirical and Synthetic Data
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(" SECTION 3: SYSTEMATIC CROSS-MODEL COMPARISON (CUBIC SPLINE vs PCHIP vs HYBRID)");
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(
+    "| Dataset                      | Target G* | Natural Spline | PCHIP Model  | Hybrid (p*=0.8) | Gastwirth [G_L, G_U]  | Status     |"
+  );
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------"
+  );
+
+  const crossDatasets = [
+    {
+      name: "Bulgaria NSI 2022 Deciles",
+      ds: BULGARIAN_NSI_2022.dataset,
+      pov: BULGARIAN_NSI_2022.metadata.povertyLine,
+      targetGini: BULGARIAN_NSI_2022.metadata.officialGini
+    },
+    {
+      name: "Bulgaria NSI Quintiles",
+      ds: BULGARIAN_NSI_QUINTILES_2022.dataset,
+      pov: BULGARIAN_NSI_QUINTILES_2022.metadata.povertyLine,
+      targetGini: BULGARIAN_NSI_QUINTILES_2022.metadata.officialGini
+    },
+    {
+      name: "Eurostat EU-27 2022",
+      ds: EUROSTAT_EU27_2022.dataset,
+      pov: EUROSTAT_EU27_2022.metadata.povertyLine,
+      targetGini: EUROSTAT_EU27_2022.metadata.officialGini
+    },
+    {
+      name: "US Census Bureau CPS 2022",
+      ds: US_CENSUS_CPS_2022.dataset,
+      pov: US_CENSUS_CPS_2022.metadata.povertyLine,
+      targetGini: US_CENSUS_CPS_2022.metadata.officialGini
+    },
+    {
+      name: "Synthetic Log-Normal (σ=0.7)",
+      ds: new LogNormalDistribution(0.7).sampleQuantiles(10, 25000),
+      pov: 12000,
+      targetGini: new LogNormalDistribution(0.7).theoreticalGini
+    },
+    {
+      name: "Synthetic Singh-Maddala",
+      ds: new SinghMaddalaDistribution(2.8, 1.7).sampleQuantiles(10, 24000),
+      pov: 11500,
+      targetGini: new SinghMaddalaDistribution(2.8, 1.7).theoreticalGini
+    },
+    {
+      name: "Synthetic Dagum (a=3.5)",
+      ds: new DagumDistribution(3.5, 0.7).sampleQuantiles(10, 26000),
+      pov: 12500,
+      targetGini: new DagumDistribution(3.5, 0.7).theoreticalGini
+    }
+  ];
+
+  const nrSolver = new NewtonRaphsonSolver();
+
+  for (const d of crossDatasets) {
+    const cs = new CubicSplineLorenzCurve(d.ds);
+    const pch = new PchipLorenzCurve(d.ds);
+    const hyb = new HybridLorenzCurve(d.ds, { bodyModel: pch, splicePoint: 0.8 });
+
+    const engCs = new InequalityEngine(cs, simpson, bisection);
+    const engPch = new InequalityEngine(pch, simpson, bisection);
+    const engHyb = new InequalityEngine(hyb, simpson, bisection);
+
+    const gCs = engCs.computeGini(200).giniIndex;
+    const gPch = engPch.computeGini(200).giniIndex;
+    const gHyb = engHyb.computeGini(200).giniIndex;
+    const cert = engPch.certifyGastwirthBounds(gPch);
+
+    const dName = d.name.padEnd(28);
+    const tG = d.targetGini.toFixed(4).padStart(9);
+    const csG = gCs.toFixed(4).padStart(14);
+    const pchG = gPch.toFixed(4).padStart(12);
+    const hybG = gHyb.toFixed(4).padStart(15);
+    const bounds = `[${cert.lowerBound.toFixed(4)}, ${cert.upperBound.toFixed(4)}]`.padStart(21);
+    const status = (cert.isCertified ? "Certified" : "Uncertified").padStart(10);
+
+    console.log(`| ${dName} | ${tG} | ${csG} | ${pchG} | ${hybG} | ${bounds} | ${status} |`);
+  }
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------\n"
+  );
+
+  // Section 4: Macroeconomic Indicators and Poverty Headcount
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(" SECTION 4: RECONSTRUCTED MACROECONOMIC INDICATORS & HEADCOUNT INVERSION (HYBRID)");
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(
+    "| Dataset                      | Mean Income μ | Poverty Line z | Gini (G) | Palma Ratio | Sen Welfare W | Headcount H |"
+  );
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------"
+  );
+
+  for (const d of crossDatasets) {
+    const pch = new PchipLorenzCurve(d.ds);
+    const hyb = new HybridLorenzCurve(d.ds, { bodyModel: pch, splicePoint: 0.8 });
+    const eng = new InequalityEngine(hyb, simpson, nrSolver);
+    const m = eng.computeComprehensiveMetrics(200, d.pov);
+
+    const dName = d.name.padEnd(28);
+    const meanStr = `${Math.round(d.ds.meanIncome || 10000)} EUR`.padStart(13);
+    const povStr = `${d.pov} EUR`.padStart(14);
+    const gStr = m.giniIndex.toFixed(4).padStart(8);
+    const palmaStr = isFinite(m.palmaRatio)
+      ? m.palmaRatio.toFixed(2).padStart(11)
+      : "N/A".padStart(11);
+    const senStr = `${Math.round(m.senWelfareIndex).toLocaleString()} EUR`.padStart(13);
+    const hcStr =
+      m.povertyHeadcount !== undefined
+        ? `${(m.povertyHeadcount * 100).toFixed(1)}%`.padStart(11)
+        : "N/A".padStart(11);
+
+    console.log(
+      `| ${dName} | ${meanStr} | ${povStr} | ${gStr} | ${palmaStr} | ${senStr} | ${hcStr} |`
+    );
+  }
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------\n"
   );
 
   console.log("===============================================================================");

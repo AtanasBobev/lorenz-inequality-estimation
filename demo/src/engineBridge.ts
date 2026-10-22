@@ -1,4 +1,5 @@
 import {
+  LorenzModel,
   CubicSplineLorenzCurve,
   PchipLorenzCurve,
   HybridLorenzCurve,
@@ -11,12 +12,12 @@ import { AppState } from "./types.js";
 
 export interface EvaluationResult {
   metrics: InequalityMetrics;
-  model: any;
+  model: LorenzModel;
 }
 
 export function evaluateInequality(state: AppState): EvaluationResult {
-  let baseSpline: any;
-  let model: any;
+  let baseSpline: LorenzModel;
+  let model: LorenzModel;
 
   if (state.modelType === "cubicspline") {
     baseSpline = new CubicSplineLorenzCurve(state.dataset);
