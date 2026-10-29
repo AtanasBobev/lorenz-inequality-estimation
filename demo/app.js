@@ -242,15 +242,84 @@
         maxError
       };
     }
+    // Evaluates top-income wealth shares across high-net-worth brackets.
+    computeTopIncomeShares() {
+      const l40 = this.model.evaluate(0.4);
+      const l50 = this.model.evaluate(0.5);
+      const l90 = this.model.evaluate(0.9);
+      const l95 = this.model.evaluate(0.95);
+      const l99 = this.model.evaluate(0.99);
+      const l999 = this.model.evaluate(0.999);
+      const l9999 = this.model.evaluate(0.9999);
+      return {
+        top10PercentShare: Math.max(0, Math.min(1, 1 - l90)),
+        top5PercentShare: Math.max(0, Math.min(1, 1 - l95)),
+        top1PercentShare: Math.max(0, Math.min(1, 1 - l99)),
+        top01PercentShare: Math.max(0, Math.min(1, 1 - l999)),
+        top001PercentShare: Math.max(0, Math.min(1, 1 - l9999)),
+        bottom40PercentShare: Math.max(0, Math.min(1, l40)),
+        bottom50PercentShare: Math.max(0, Math.min(1, l50)),
+        middle40PercentShare: Math.max(0, Math.min(1, l90 - l50))
+      };
+    }
+    // Evaluates poverty headcount sensitivity and elasticity with respect to threshold z and mean mu.
+    computePovertyElasticities(povertyLine, meanIncome) {
+      const mu = meanIncome ?? this.model.getDataset().meanIncome;
+      if (mu <= 0) {
+        throw new Error(`Mean income must be positive, received ${mu}.`);
+      }
+      if (povertyLine <= 0) {
+        return {
+          povertyHeadcount: 0,
+          povertyLine,
+          meanIncome: mu,
+          marginalIncome: 0,
+          incomeDensity: 0,
+          dH_dz: 0,
+          dH_dmu: 0,
+          elasticityZ: 0,
+          elasticityMu: 0
+        };
+      }
+      const H = this.getPovertyHeadcount(povertyLine, mu);
+      const lPrime = this.model.derivative(H);
+      const lDoublePrime = this.model.secondDerivative(H);
+      const marginalIncome = mu * lPrime;
+      const incomeDensity = mu * lDoublePrime;
+      let dH_dz = 0;
+      let dH_dmu = 0;
+      let elasticityZ = 0;
+      let elasticityMu = 0;
+      if (H > 1e-6 && H < 1 - 1e-6 && incomeDensity > 1e-12) {
+        dH_dz = 1 / incomeDensity;
+        dH_dmu = -povertyLine / (mu * incomeDensity);
+        elasticityZ = povertyLine / H * dH_dz;
+        elasticityMu = mu / H * dH_dmu;
+      }
+      return {
+        povertyHeadcount: H,
+        povertyLine,
+        meanIncome: mu,
+        marginalIncome,
+        incomeDensity,
+        dH_dz,
+        dH_dmu,
+        elasticityZ,
+        elasticityMu
+      };
+    }
     // Evaluates complete inequality metrics including Gini, Sen index, Palma ratio, and bounds.
     computeComprehensiveMetrics(stepCount = 200, povertyLine) {
       const giniResult = this.computeGini(stepCount);
       const senWelfare = this.computeSenWelfare(stepCount);
       const palmaRatio = this.computePalmaRatio();
       const gastwirthCertificate = this.certifyGastwirthBounds(giniResult.giniIndex);
+      const topIncomeShares = this.computeTopIncomeShares();
       let povertyHeadcount = void 0;
+      let povertyElasticities = void 0;
       if (povertyLine !== void 0) {
         povertyHeadcount = this.getPovertyHeadcount(povertyLine);
+        povertyElasticities = this.computePovertyElasticities(povertyLine);
       }
       return {
         giniIndex: giniResult.giniIndex,
@@ -260,7 +329,9 @@
         meanIncome: this.model.getDataset().meanIncome,
         povertyHeadcount,
         povertyLine,
-        gastwirthCertificate
+        gastwirthCertificate,
+        topIncomeShares,
+        povertyElasticities
       };
     }
     setIntegrator(integrator) {
@@ -1200,6 +1271,77 @@
     }
   };
 
+  // src/solvers/BisectionSolver.ts
+  var BisectionSolver = class {
+    name = "Bisection Method";
+    solve(fn, lowerBound, upperBound, tolerance = 1e-8, maxIterations = 100) {
+      let a = lowerBound;
+      let b = upperBound;
+      let fa = fn(a);
+      let fb = fn(b);
+      if (Math.abs(fa) <= tolerance) {
+        return {
+          root: a,
+          populationPercentile: a,
+          iterations: 0,
+          converged: true,
+          finalError: Math.abs(fa)
+        };
+      }
+      if (Math.abs(fb) <= tolerance) {
+        return {
+          root: b,
+          populationPercentile: b,
+          iterations: 0,
+          converged: true,
+          finalError: Math.abs(fb)
+        };
+      }
+      if (fa * fb > 0) {
+        throw new Error(`Root is not bracketed: f(${a})=${fa} and f(${b})=${fb} have the same sign.`);
+      }
+      let mid = a;
+      let fmid = fa;
+      for (let iter = 1; iter <= maxIterations; iter++) {
+        mid = a + (b - a) / 2;
+        fmid = fn(mid);
+        const halfInterval = (b - a) / 2;
+        if (Math.abs(fmid) <= tolerance || halfInterval <= tolerance) {
+          return {
+            root: mid,
+            populationPercentile: mid,
+            iterations: iter,
+            converged: true,
+            finalError: Math.abs(fmid)
+          };
+        }
+        if (fa * fmid < 0) {
+          b = mid;
+          fb = fmid;
+        } else {
+          a = mid;
+          fa = fmid;
+        }
+      }
+      return {
+        root: mid,
+        populationPercentile: mid,
+        iterations: maxIterations,
+        converged: false,
+        finalError: Math.abs(fmid)
+      };
+    }
+    findRoot(model, targetIncomeShare, lowerBound = 0, upperBound = 1, tolerance = 1e-8, maxIterations = 100) {
+      return this.solve(
+        (p) => model.evaluate(p) - targetIncomeShare,
+        lowerBound,
+        upperBound,
+        tolerance,
+        maxIterations
+      );
+    }
+  };
+
   // src/tail/HybridLorenzCurve.ts
   var HybridLorenzCurve = class extends LorenzModel {
     bodyModel;
@@ -1325,6 +1467,108 @@
       }
       const alpha = remainingL / denominator;
       return Math.max(1.05, alpha);
+    }
+  };
+
+  // src/diagnostics/SensitivityAnalyzer.ts
+  var WID_BENCHMARKS = {
+    bulgaria: {
+      datasetName: "Bulgarian NSI (2022 HBS Deciles)",
+      officialGini: 0.384,
+      widTop10: 0.342,
+      widTop1: 0.128,
+      widTop01: 0.042
+    },
+    eurostat: {
+      datasetName: "Eurostat EU-27 (2022 SILC)",
+      officialGini: 0.296,
+      widTop10: 0.354,
+      widTop1: 0.114,
+      widTop01: 0.035
+    },
+    us_census: {
+      datasetName: "US Census Bureau CPS (2022 ASEC)",
+      officialGini: 0.488,
+      widTop10: 0.458,
+      widTop1: 0.191,
+      widTop01: 0.075
+    }
+  };
+  var SensitivityAnalyzer = class {
+    static integrator = new SimpsonsIntegrator();
+    static rootFinder = new BisectionSolver();
+    // Performs systematic parametric scan across Pareto splicing knot p* in [startP, endP].
+    static sweepParetoSplice(dataset, startP = 0.6, endP = 0.95, step = 0.05, bodyModelType = "pchip") {
+      const records = [];
+      const baseSpline = bodyModelType === "cubicspline" ? new CubicSplineLorenzCurve(dataset) : new PchipLorenzCurve(dataset);
+      const stepsCount = Math.max(1, Math.round((endP - startP) / step));
+      for (let i = 0; i <= stepsCount; i++) {
+        const pStar = Math.min(endP, Number((startP + i * step).toFixed(4)));
+        if (pStar <= 0 || pStar >= 1) continue;
+        try {
+          const hybrid = new HybridLorenzCurve(dataset, {
+            bodyModel: baseSpline,
+            splicePoint: pStar
+          });
+          const engine = new InequalityEngine(hybrid, this.integrator, this.rootFinder);
+          const giniResult = engine.computeGini(200);
+          const cert = engine.certifyGastwirthBounds(giniResult.giniIndex);
+          const alpha = hybrid.getTailAlpha();
+          const top1PercentShare = Math.max(0, Math.min(1, 1 - hybrid.evaluate(0.99)));
+          const top01PercentShare = Math.max(0, Math.min(1, 1 - hybrid.evaluate(0.999)));
+          const splineCurvature = baseSpline.secondDerivative(pStar);
+          const hybridCurvature = hybrid.secondDerivative(Math.min(0.9999, pStar + 1e-5));
+          const secondDerivativeJump = Math.abs(hybridCurvature - splineCurvature);
+          records.push({
+            pStar,
+            giniIndex: giniResult.giniIndex,
+            tailAlpha: alpha,
+            top1PercentShare,
+            top01PercentShare,
+            secondDerivativeJump,
+            isCertified: cert.isCertified
+          });
+        } catch {
+          continue;
+        }
+      }
+      return records;
+    }
+    // Analyzes poverty headcount sensitivity across varying thresholds.
+    static computePovertySensitivityTable(model, povertyLines, meanIncome) {
+      const engine = new InequalityEngine(model, this.integrator, this.rootFinder);
+      return povertyLines.map((line) => engine.computePovertyElasticities(line, meanIncome));
+    }
+    // Decomposes high-net-worth upper-tail wealth shares.
+    static decomposeTopWealth(model) {
+      const engine = new InequalityEngine(model, this.integrator, this.rootFinder);
+      return engine.computeTopIncomeShares();
+    }
+    // Compares model reconstructed top-income shares against official World Inequality Database (WID) benchmarks.
+    static compareWithWID(datasetKey, splineModel, hybridModel) {
+      const wid = WID_BENCHMARKS[datasetKey];
+      if (!wid) {
+        throw new Error(`Unknown benchmark dataset key '${datasetKey}'.`);
+      }
+      const splineShares = this.decomposeTopWealth(splineModel);
+      const hybridShares = this.decomposeTopWealth(hybridModel);
+      const splineTop10 = splineShares.top10PercentShare;
+      const splineTop1 = splineShares.top1PercentShare;
+      const hybridTop10 = hybridShares.top10PercentShare;
+      const hybridTop1 = hybridShares.top1PercentShare;
+      const top1ErrorSpline = Math.abs(splineTop1 - wid.widTop1) / wid.widTop1;
+      const top1ErrorHybrid = Math.abs(hybridTop1 - wid.widTop1) / wid.widTop1;
+      return {
+        datasetName: wid.datasetName,
+        splineTop10,
+        splineTop1,
+        hybridTop10,
+        hybridTop1,
+        widTop10: wid.widTop10,
+        widTop1: wid.widTop1,
+        top1ErrorSpline,
+        top1ErrorHybrid
+      };
     }
   };
 
@@ -2015,6 +2259,8 @@
   var outAlpha = document.getElementById("outAlpha");
   var outBenchmarkGini = document.getElementById("outBenchmarkGini");
   var outErrorGini = document.getElementById("outErrorGini");
+  var outTop1AndElasticity = document.getElementById("outTop1AndElasticity");
+  var outTop10And01 = document.getElementById("outTop10And01");
   var labelBenchmarkGini = document.getElementById("labelBenchmarkGini");
   var labelErrorGini = document.getElementById("labelErrorGini");
   var badgeStatus = document.getElementById("badgeStatus");
@@ -2095,6 +2341,19 @@
           outBenchmarkGini.textContent = "N/A (Custom Data)";
           labelErrorGini.textContent = "Gastwirth Max Error Bound";
           outErrorGini.textContent = `\xB1${state.currentGastwirth.maxError.toFixed(4)}`;
+        }
+      }
+      if (outTop1AndElasticity && outTop10And01) {
+        if (result.metrics.topIncomeShares) {
+          const t1 = (result.metrics.topIncomeShares.top1PercentShare * 100).toFixed(2);
+          const t10 = (result.metrics.topIncomeShares.top10PercentShare * 100).toFixed(1);
+          const t01 = (result.metrics.topIncomeShares.top01PercentShare * 100).toFixed(2);
+          const ez = result.metrics.povertyElasticities ? result.metrics.povertyElasticities.elasticityZ.toFixed(2) : "N/A";
+          outTop1AndElasticity.textContent = `${t1}% (\u03B5_z: +${ez})`;
+          outTop10And01.textContent = `${t10}% / ${t01}%`;
+        } else {
+          outTop1AndElasticity.textContent = "\u2014";
+          outTop10And01.textContent = "\u2014";
         }
       }
       if (badgeStatus) {

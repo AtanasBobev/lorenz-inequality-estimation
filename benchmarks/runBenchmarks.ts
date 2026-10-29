@@ -6,6 +6,7 @@ import {
   BisectionSolver,
   NewtonRaphsonSolver,
   InequalityEngine,
+  SensitivityAnalyzer,
   LogNormalDistribution,
   SinghMaddalaDistribution,
   DagumDistribution,
@@ -306,6 +307,135 @@ export function runFullBenchmarkSuite(iterations: number = 10000): void {
     console.log(
       `| ${dName} | ${meanStr} | ${povStr} | ${gStr} | ${palmaStr} | ${senStr} | ${hcStr} |`
     );
+  }
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------\n"
+  );
+
+  // Section 5: Poverty Headcount Elasticities & Sensitivity
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(" SECTION 5: POVERTY HEADCOUNT ELASTICITIES & SENSITIVITY DIAGNOSTICS");
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(
+    "| Dataset                      | Headcount (H) | Density f(z) | dH / dz (/EUR) | dH / dμ (/EUR) | Elasticity ε_z | Elasticity ε_μ |"
+  );
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------"
+  );
+
+  for (const d of crossDatasets) {
+    const pch = new PchipLorenzCurve(d.ds);
+    const hyb = new HybridLorenzCurve(d.ds, { bodyModel: pch, splicePoint: 0.8 });
+    const eng = new InequalityEngine(hyb, simpson, nrSolver);
+    const el = eng.computePovertyElasticities(d.pov);
+
+    const dName = d.name.padEnd(28);
+    const hcStr = `${(el.povertyHeadcount * 100).toFixed(1)}%`.padStart(13);
+    const densStr =
+      el.incomeDensity > 0 ? el.incomeDensity.toFixed(4).padStart(12) : "N/A".padStart(12);
+    const dHdzStr = el.dH_dz > 0 ? el.dH_dz.toExponential(2).padStart(14) : "N/A".padStart(14);
+    const dHdmuStr = el.dH_dmu < 0 ? el.dH_dmu.toExponential(2).padStart(14) : "N/A".padStart(14);
+    const ezStr =
+      el.elasticityZ !== 0 ? el.elasticityZ.toFixed(2).padStart(14) : "N/A".padStart(14);
+    const emuStr =
+      el.elasticityMu !== 0 ? el.elasticityMu.toFixed(2).padStart(14) : "N/A".padStart(14);
+
+    console.log(
+      `| ${dName} | ${hcStr} | ${densStr} | ${dHdzStr} | ${dHdmuStr} | ${ezStr} | ${emuStr} |`
+    );
+  }
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------\n"
+  );
+
+  // Section 6: Top-Income Wealth Share Recovery vs WID Administrative Benchmarks
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(" SECTION 6: TOP-INCOME WEALTH SHARE RECOVERY vs WID ADMINISTRATIVE BENCHMARKS");
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(
+    "| Dataset Key  | Spline Top 10% | Spline Top 1% | Hybrid Top 10% | Hybrid Top 1% | WID Top 10% | WID Top 1% | Rel Err Reduc |"
+  );
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------"
+  );
+
+  const widKeys: Array<"bulgaria" | "eurostat" | "us_census"> = [
+    "bulgaria",
+    "eurostat",
+    "us_census"
+  ];
+  const widDatasets = [
+    { key: "bulgaria" as const, ds: BULGARIAN_NSI_2022.dataset },
+    { key: "eurostat" as const, ds: EUROSTAT_EU27_2022.dataset },
+    { key: "us_census" as const, ds: US_CENSUS_CPS_2022.dataset }
+  ];
+
+  for (const item of widDatasets) {
+    const cs = new CubicSplineLorenzCurve(item.ds);
+    const hyb = new HybridLorenzCurve(item.ds, { splicePoint: 0.8 });
+    const comp = SensitivityAnalyzer.compareWithWID(item.key, cs, hyb);
+
+    const keyStr = item.key.toUpperCase().padEnd(12);
+    const s10Str = `${(comp.splineTop10 * 100).toFixed(1)}%`.padStart(14);
+    const s1Str = `${(comp.splineTop1 * 100).toFixed(2)}%`.padStart(13);
+    const h10Str = `${(comp.hybridTop10 * 100).toFixed(1)}%`.padStart(14);
+    const h1Str = `${(comp.hybridTop1 * 100).toFixed(2)}%`.padStart(13);
+    const w10Str = `${(comp.widTop10 * 100).toFixed(1)}%`.padStart(11);
+    const w1Str = `${(comp.widTop1 * 100).toFixed(2)}%`.padStart(10);
+    const redStr =
+      `${(((comp.top1ErrorSpline - comp.top1ErrorHybrid) / comp.top1ErrorSpline) * 100).toFixed(1)}%`.padStart(
+        13
+      );
+
+    console.log(
+      `| ${keyStr} | ${s10Str} | ${s1Str} | ${h10Str} | ${h1Str} | ${w10Str} | ${w1Str} | ${redStr} |`
+    );
+  }
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------\n"
+  );
+
+  // Section 7: Pareto Tail Splicing Knot (p*) Sensitivity Sweep
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(
+    " SECTION 7: PARETO TAIL SPLICING KNOT (p*) SENSITIVITY SWEEP (BULGARIAN NSI DECILES)"
+  );
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(
+    "| Splice Knot (p*) | Gini Index (G) | Pareto Alpha (α) | Top 1% Share | Top 0.1% Share | Curvature Jump | Gastwirth Status |"
+  );
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------"
+  );
+
+  const bgSweep = SensitivityAnalyzer.sweepParetoSplice(
+    BULGARIAN_NSI_2022.dataset,
+    0.6,
+    0.95,
+    0.05
+  );
+  for (const pt of bgSweep) {
+    const pStr = pt.pStar.toFixed(2).padStart(16);
+    const gStr = pt.giniIndex.toFixed(4).padStart(14);
+    const aStr = pt.tailAlpha.toFixed(3).padStart(16);
+    const t1Str = `${(pt.top1PercentShare * 100).toFixed(2)}%`.padStart(12);
+    const t01Str = `${(pt.top01PercentShare * 100).toFixed(2)}%`.padStart(14);
+    const jumpStr = pt.secondDerivativeJump.toFixed(3).padStart(14);
+    const certStr = (pt.isCertified ? "Certified" : "Uncertified").padStart(16);
+
+    console.log(`| ${pStr} | ${gStr} | ${aStr} | ${t1Str} | ${t01Str} | ${jumpStr} | ${certStr} |`);
   }
   console.log(
     "------------------------------------------------------------------------------------------------------------------\n"

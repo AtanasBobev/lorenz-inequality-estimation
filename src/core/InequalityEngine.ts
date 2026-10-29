@@ -1,7 +1,14 @@
 import { LorenzModel } from "./LorenzModel.js";
 import { NumericalIntegrator } from "./NumericalIntegrator.js";
 import { RootFinder } from "./RootFinder.js";
-import { GiniResult, WelfareResult, GastwirthCertificate, InequalityMetrics } from "./types.js";
+import {
+  GiniResult,
+  WelfareResult,
+  GastwirthCertificate,
+  InequalityMetrics,
+  TopIncomeShares,
+  PovertyElasticities
+} from "./types.js";
 
 export class InequalityEngine {
   private model: LorenzModel;
@@ -171,6 +178,80 @@ export class InequalityEngine {
     };
   }
 
+  // Evaluates top-income wealth shares across high-net-worth brackets.
+  public computeTopIncomeShares(): TopIncomeShares {
+    const l40 = this.model.evaluate(0.4);
+    const l50 = this.model.evaluate(0.5);
+    const l90 = this.model.evaluate(0.9);
+    const l95 = this.model.evaluate(0.95);
+    const l99 = this.model.evaluate(0.99);
+    const l999 = this.model.evaluate(0.999);
+    const l9999 = this.model.evaluate(0.9999);
+
+    return {
+      top10PercentShare: Math.max(0, Math.min(1, 1 - l90)),
+      top5PercentShare: Math.max(0, Math.min(1, 1 - l95)),
+      top1PercentShare: Math.max(0, Math.min(1, 1 - l99)),
+      top01PercentShare: Math.max(0, Math.min(1, 1 - l999)),
+      top001PercentShare: Math.max(0, Math.min(1, 1 - l9999)),
+      bottom40PercentShare: Math.max(0, Math.min(1, l40)),
+      bottom50PercentShare: Math.max(0, Math.min(1, l50)),
+      middle40PercentShare: Math.max(0, Math.min(1, l90 - l50))
+    };
+  }
+
+  // Evaluates poverty headcount sensitivity and elasticity with respect to threshold z and mean mu.
+  public computePovertyElasticities(povertyLine: number, meanIncome?: number): PovertyElasticities {
+    const mu = meanIncome ?? this.model.getDataset().meanIncome;
+    if (mu <= 0) {
+      throw new Error(`Mean income must be positive, received ${mu}.`);
+    }
+
+    if (povertyLine <= 0) {
+      return {
+        povertyHeadcount: 0,
+        povertyLine,
+        meanIncome: mu,
+        marginalIncome: 0,
+        incomeDensity: 0,
+        dH_dz: 0,
+        dH_dmu: 0,
+        elasticityZ: 0,
+        elasticityMu: 0
+      };
+    }
+
+    const H = this.getPovertyHeadcount(povertyLine, mu);
+    const lPrime = this.model.derivative(H);
+    const lDoublePrime = this.model.secondDerivative(H);
+    const marginalIncome = mu * lPrime;
+    const incomeDensity = mu * lDoublePrime;
+
+    let dH_dz = 0;
+    let dH_dmu = 0;
+    let elasticityZ = 0;
+    let elasticityMu = 0;
+
+    if (H > 1e-6 && H < 1 - 1e-6 && incomeDensity > 1e-12) {
+      dH_dz = 1 / incomeDensity;
+      dH_dmu = -povertyLine / (mu * incomeDensity);
+      elasticityZ = (povertyLine / H) * dH_dz;
+      elasticityMu = (mu / H) * dH_dmu;
+    }
+
+    return {
+      povertyHeadcount: H,
+      povertyLine,
+      meanIncome: mu,
+      marginalIncome,
+      incomeDensity,
+      dH_dz,
+      dH_dmu,
+      elasticityZ,
+      elasticityMu
+    };
+  }
+
   // Evaluates complete inequality metrics including Gini, Sen index, Palma ratio, and bounds.
   public computeComprehensiveMetrics(
     stepCount: number = 200,
@@ -180,10 +261,14 @@ export class InequalityEngine {
     const senWelfare = this.computeSenWelfare(stepCount);
     const palmaRatio = this.computePalmaRatio();
     const gastwirthCertificate = this.certifyGastwirthBounds(giniResult.giniIndex);
+    const topIncomeShares = this.computeTopIncomeShares();
 
     let povertyHeadcount: number | undefined = undefined;
+    let povertyElasticities: PovertyElasticities | undefined = undefined;
+
     if (povertyLine !== undefined) {
       povertyHeadcount = this.getPovertyHeadcount(povertyLine);
+      povertyElasticities = this.computePovertyElasticities(povertyLine);
     }
 
     return {
@@ -194,7 +279,9 @@ export class InequalityEngine {
       meanIncome: this.model.getDataset().meanIncome,
       povertyHeadcount,
       povertyLine,
-      gastwirthCertificate
+      gastwirthCertificate,
+      topIncomeShares,
+      povertyElasticities
     };
   }
 

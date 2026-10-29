@@ -79,6 +79,8 @@ const outHeadcount = document.getElementById("outHeadcount") as HTMLElement | nu
 const outAlpha = document.getElementById("outAlpha") as HTMLElement | null;
 const outBenchmarkGini = document.getElementById("outBenchmarkGini") as HTMLElement | null;
 const outErrorGini = document.getElementById("outErrorGini") as HTMLElement | null;
+const outTop1AndElasticity = document.getElementById("outTop1AndElasticity") as HTMLElement | null;
+const outTop10And01 = document.getElementById("outTop10And01") as HTMLElement | null;
 const labelBenchmarkGini = document.getElementById("labelBenchmarkGini") as HTMLElement | null;
 const labelErrorGini = document.getElementById("labelErrorGini") as HTMLElement | null;
 const badgeStatus = document.getElementById("badgeStatus") as HTMLElement | null;
@@ -174,6 +176,22 @@ function recompute(): void {
         outBenchmarkGini.textContent = "N/A (Custom Data)";
         labelErrorGini.textContent = "Gastwirth Max Error Bound";
         outErrorGini.textContent = `±${state.currentGastwirth.maxError.toFixed(4)}`;
+      }
+    }
+
+    if (outTop1AndElasticity && outTop10And01) {
+      if (result.metrics.topIncomeShares) {
+        const t1 = (result.metrics.topIncomeShares.top1PercentShare * 100).toFixed(2);
+        const t10 = (result.metrics.topIncomeShares.top10PercentShare * 100).toFixed(1);
+        const t01 = (result.metrics.topIncomeShares.top01PercentShare * 100).toFixed(2);
+        const ez = result.metrics.povertyElasticities
+          ? result.metrics.povertyElasticities.elasticityZ.toFixed(2)
+          : "N/A";
+        outTop1AndElasticity.textContent = `${t1}% (ε_z: +${ez})`;
+        outTop10And01.textContent = `${t10}% / ${t01}%`;
+      } else {
+        outTop1AndElasticity.textContent = "—";
+        outTop10And01.textContent = "—";
       }
     }
 

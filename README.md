@@ -94,8 +94,10 @@ src/
 │   ├── DagumDistribution.ts         # Analytical Dagum (Burr III) distribution
 │   ├── syntheticDistributions.ts    # Synthetic distribution factory and registry
 │   └── specialFunctions.ts          # Lanczos log-Gamma, erf, and incomplete Beta routines
-└── regression/
-    └── ConsumptionRegressor.ts      # Ordinary least squares consumption regression
+├── regression/
+│   └── ConsumptionRegressor.ts      # Ordinary least squares consumption regression
+└── diagnostics/
+    └── SensitivityAnalyzer.ts       # Poverty elasticities, Pareto sweeps, and WID benchmarks
 demo/
 ├── index.html                 # Interactive browser dashboard UI
 ├── style.css                  # Responsive dashboard stylesheet

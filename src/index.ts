@@ -8,3 +8,4 @@ export * from "./regression/index.js";
 export * from "./simulation/index.js";
 export * from "./solvers/index.js";
 export * from "./tail/index.js";
+export * from "./diagnostics/index.js";
