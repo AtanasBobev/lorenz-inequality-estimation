@@ -178,6 +178,21 @@
                   <span>0.80 (Default Decile)</span>
                   <span>0.95 (Extreme Top)</span>
                 </div>
+                <div class="mt-2 d-flex justify-content-between align-items-center">
+                  <button
+                    id="btnAutoSelectKnot"
+                    class="btn btn-sm btn-outline-dark"
+                    style="font-size: 0.75rem; padding: 0.2rem 0.55rem"
+                    title="Optimize knot using penalized AICc and C^2 curvature continuity"
+                  >
+                    ⚡ Auto-Select Knot (p*)
+                  </button>
+                  <span
+                    id="badgeOptimalKnot"
+                    class="badge badge-dark"
+                    style="font-size: 0.7rem; display: none"
+                  ></span>
+                </div>
               </div>
 
               <div class="mb-3">
@@ -271,6 +286,46 @@
 
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Information Criteria & Model Selection</span>
+              <span class="badge badge-secondary" style="font-size: 0.7rem"
+                >Akaike (AICc) / Schwarz (BIC)</span
+              >
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table
+                  class="table table-sm table-bordered table-hover mb-0 align-middle model-selection-table"
+                >
+                  <thead class="table-light">
+                    <tr>
+                      <th>Candidate Model</th>
+                      <th class="text-center" style="width: 45px">k</th>
+                      <th class="text-end">RMSE</th>
+                      <th class="text-end">Log-Likelihood</th>
+                      <th class="text-end">AICc</th>
+                      <th class="text-end">ΔAICc</th>
+                      <th class="text-end">Akaike Wt (wᵢ)</th>
+                      <th class="text-end">Evidence</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modelSelectionTableBody"></tbody>
+                </table>
+              </div>
+              <div
+                class="p-2 bg-light border-top d-flex justify-content-between align-items-center text-muted"
+                style="font-size: 0.73rem"
+              >
+                <span
+                  >AICc penalizes parameterization to prevent overfitting on coarse quantile
+                  samples.</span
+                >
+                <span id="badgeBestModel" class="badge badge-dark">Best: —</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
               <span>Lorenz Curve & Gastwirth Bounding Envelope</span>
               <span class="badge badge-secondary" style="font-size: 0.7rem"
                 >Cumulative Income Distribution</span
@@ -331,6 +386,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=0.1.6"></script>
+    <script src="./app.js?v=0.1.7"></script>
   </body>
 </html>

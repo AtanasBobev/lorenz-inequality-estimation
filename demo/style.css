@@ -489,6 +489,37 @@ body {
   padding: 0.65rem 0.95rem;
 }
 
+.model-selection-table {
+  font-size: 0.78rem;
+}
+
+.model-selection-table th {
+  font-weight: 600;
+  color: #495057;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.75rem;
+  background-color: #f8f9fa;
+}
+
+.model-selection-table td {
+  padding: 0.45rem 0.65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.model-selection-table td.model-name {
+  font-family: inherit;
+  font-weight: 600;
+  color: #212529;
+}
+
+.model-selection-table tr.best-model-row {
+  background-color: #e8f5e9;
+}
+
+.model-selection-table tr.best-model-row td {
+  font-weight: 600;
+}
+
 .canvas-wrapper {
   width: 100%;
   border: 1px solid #dee2e6;

@@ -1572,6 +1572,213 @@
     }
   };
 
+  // src/diagnostics/ModelSelectionEvaluator.ts
+  var ModelSelectionEvaluator = class {
+    static EPSILON_RSS = 1e-14;
+    /**
+     * Computes maximized log-likelihood under Gaussian error distribution:
+     * ln(L) = -0.5 * n * ln(2*pi) - 0.5 * n * ln(RSS / n) - 0.5 * n
+     */
+    static computeLogLikelihood(sampleSize, rss) {
+      if (sampleSize <= 0) {
+        throw new Error("Sample size must be strictly positive.");
+      }
+      const safeRss = Math.max(rss, this.EPSILON_RSS);
+      return -0.5 * sampleSize * Math.log(2 * Math.PI) - 0.5 * sampleSize * Math.log(safeRss / sampleSize) - 0.5 * sampleSize;
+    }
+    /**
+     * Standard Akaike Information Criterion:
+     * AIC = 2*k - 2*ln(L)
+     */
+    static computeAIC(sampleSize, rss, k) {
+      const ll = this.computeLogLikelihood(sampleSize, rss);
+      return 2 * k - 2 * ll;
+    }
+    /**
+     * Hurvich & Tsai (1989) small-sample corrected AIC:
+     * AICc = AIC + (2*k*(k+1)) / (n - k - 1)
+     */
+    static computeAICc(sampleSize, rss, k) {
+      const aic = this.computeAIC(sampleSize, rss, k);
+      const denominator = sampleSize - k - 1;
+      if (denominator <= 0) {
+        return Number.POSITIVE_INFINITY;
+      }
+      return aic + 2 * k * (k + 1) / denominator;
+    }
+    /**
+     * Bayesian Information Criterion (Schwarz 1978):
+     * BIC = k * ln(n) - 2 * ln(L)
+     */
+    static computeBIC(sampleSize, rss, k) {
+      const ll = this.computeLogLikelihood(sampleSize, rss);
+      return k * Math.log(sampleSize) - 2 * ll;
+    }
+    /**
+     * Evaluates statistical metrics and information criteria for a single model on a dataset.
+     */
+    static evaluateModel(dataset, model, parameterCount, modelName = "LorenzModel") {
+      const points = dataset.points;
+      const n = points.length;
+      if (n === 0) {
+        throw new Error("Dataset contains no quantile points.");
+      }
+      let rss = 0;
+      let absoluteErrorSum = 0;
+      let meanObserved = 0;
+      for (const pt of points) {
+        meanObserved += pt.incomeShare;
+      }
+      meanObserved /= n;
+      let totalSumSquares = 0;
+      for (const pt of points) {
+        const p = pt.populationShare;
+        const actualL = pt.incomeShare;
+        const predictedL = model.evaluate(p);
+        const residual = actualL - predictedL;
+        rss += residual * residual;
+        absoluteErrorSum += Math.abs(residual);
+        totalSumSquares += (actualL - meanObserved) * (actualL - meanObserved);
+      }
+      const mse = rss / n;
+      const rmse = Math.sqrt(mse);
+      const mae = absoluteErrorSum / n;
+      const rSquared = totalSumSquares > 0 ? Math.max(0, 1 - rss / totalSumSquares) : 1;
+      const logLikelihood = this.computeLogLikelihood(n, rss);
+      const aic = this.computeAIC(n, rss, parameterCount);
+      const aicc = this.computeAICc(n, rss, parameterCount);
+      const bic = this.computeBIC(n, rss, parameterCount);
+      return {
+        modelName,
+        parameterCount,
+        sampleSize: n,
+        rss,
+        mse,
+        rmse,
+        mae,
+        rSquared,
+        logLikelihood,
+        aic,
+        aicc,
+        bic,
+        deltaAic: 0,
+        akaikeWeight: 1,
+        evidenceRatio: 1
+      };
+    }
+    /**
+     * Compares multiple candidate models on the same dataset,
+     * computing relative delta AICc, Akaike weights, and evidence ratios.
+     */
+    static compareModels(dataset, candidates) {
+      if (candidates.length === 0) {
+        return [];
+      }
+      const evaluated = candidates.map(
+        (spec) => this.evaluateModel(dataset, spec.model, spec.parameterCount, spec.name)
+      );
+      let minAicc = Number.POSITIVE_INFINITY;
+      for (const record of evaluated) {
+        if (record.aicc < minAicc) {
+          minAicc = record.aicc;
+        }
+      }
+      const relativeLikelihoods = [];
+      let sumLikelihoods = 0;
+      for (const record of evaluated) {
+        const deltaAicc = record.aicc - minAicc;
+        const relLikelihood = Math.exp(-0.5 * deltaAicc);
+        relativeLikelihoods.push(relLikelihood);
+        sumLikelihoods += relLikelihood;
+      }
+      const results = evaluated.map((record, idx) => {
+        const deltaAic = record.aicc - minAicc;
+        const akaikeWeight = sumLikelihoods > 0 ? relativeLikelihoods[idx] / sumLikelihoods : 0;
+        const evidenceRatio = akaikeWeight > 0 ? 1 / akaikeWeight : Number.POSITIVE_INFINITY;
+        return {
+          ...record,
+          deltaAic,
+          akaikeWeight,
+          evidenceRatio
+        };
+      });
+      return results.sort((a, b) => a.deltaAic - b.deltaAic);
+    }
+    /**
+     * Performs adaptive Pareto tail splicing knot (p*) optimization.
+     * Jointly minimizes AICc and curvature discontinuity |ΔL''(p*)| across candidate knots.
+     */
+    static findOptimalKnot(dataset, options = {}) {
+      const candidateKnots = options.candidateKnots ?? [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95];
+      const curvatureWeight = options.curvatureWeight ?? 2;
+      const bodyModelType = options.bodyModelType ?? "pchip";
+      const baseSpline = bodyModelType === "cubicspline" ? new CubicSplineLorenzCurve(dataset) : new PchipLorenzCurve(dataset);
+      const records = [];
+      let bestKnot = candidateKnots[0];
+      let bestAlpha = 2;
+      let minScore = Number.POSITIVE_INFINITY;
+      const n = dataset.points.length;
+      const kHybrid = 2;
+      for (const pStar of candidateKnots) {
+        if (pStar <= 0 || pStar >= 1) continue;
+        try {
+          const hybrid = new HybridLorenzCurve(dataset, {
+            bodyModel: baseSpline,
+            splicePoint: pStar
+          });
+          const alpha = hybrid.getTailAlpha();
+          const isAdmissible = alpha > 1 && alpha < 12;
+          let rss = 0;
+          for (const pt of dataset.points) {
+            const res = pt.incomeShare - hybrid.evaluate(pt.populationShare);
+            rss += res * res;
+          }
+          const aic = this.computeAIC(n, rss, kHybrid);
+          const aicc = this.computeAICc(n, rss, kHybrid);
+          const bic = this.computeBIC(n, rss, kHybrid);
+          const splineCurvature = baseSpline.secondDerivative(pStar);
+          const hybridCurvature = hybrid.secondDerivative(Math.min(0.9999, pStar + 1e-5));
+          const curvatureJump = Math.abs(hybridCurvature - splineCurvature);
+          let alphaPenalty = 0;
+          if (alpha > 5) {
+            alphaPenalty = 5 * (alpha - 5);
+          } else if (alpha < 1.1) {
+            alphaPenalty = 20 * (1.1 - alpha);
+          }
+          const penalizedScore = aicc + curvatureWeight * Math.log(1 + curvatureJump) + alphaPenalty;
+          const record = {
+            pStar,
+            tailAlpha: alpha,
+            curvatureJump,
+            rss,
+            aic,
+            aicc,
+            bic,
+            penalizedScore,
+            isAdmissible
+          };
+          records.push(record);
+          if (isAdmissible && penalizedScore < minScore) {
+            minScore = penalizedScore;
+            bestKnot = pStar;
+            bestAlpha = alpha;
+          }
+        } catch {
+          continue;
+        }
+      }
+      if (records.length === 0) {
+        throw new Error("No admissible splicing knot found across candidate set.");
+      }
+      return {
+        optimalKnot: bestKnot,
+        minScore,
+        optimalAlpha: bestAlpha,
+        records
+      };
+    }
+  };
+
   // demo/src/presets.ts
   function loadPreset(key) {
     switch (key) {
@@ -1698,6 +1905,38 @@
     const engine = new InequalityEngine(model, integrator, solver);
     const metrics = engine.computeComprehensiveMetrics(200, state2.povertyLine);
     return { metrics, model };
+  }
+  function evaluateModelSelection(state2) {
+    const pchip = new PchipLorenzCurve(state2.dataset);
+    const cubic = new CubicSplineLorenzCurve(state2.dataset);
+    const hybrid = new HybridLorenzCurve(state2.dataset, {
+      bodyModel: pchip,
+      splicePoint: state2.splicingThreshold
+    });
+    const candidates = [
+      {
+        name: `Proposed Hybrid (p* = ${state2.splicingThreshold.toFixed(2)})`,
+        model: hybrid,
+        parameterCount: 3
+      },
+      {
+        name: "Monotone PCHIP Spline",
+        model: pchip,
+        parameterCount: 2
+      },
+      {
+        name: "Natural Cubic Spline",
+        model: cubic,
+        parameterCount: 2
+      }
+    ];
+    const comparison = ModelSelectionEvaluator.compareModels(state2.dataset, candidates);
+    const knotOptimization = ModelSelectionEvaluator.findOptimalKnot(state2.dataset, {
+      candidateKnots: [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95],
+      curvatureWeight: 2,
+      bodyModelType: "pchip"
+    });
+    return { comparison, knotOptimization };
   }
 
   // demo/src/charts/lorenzChart.ts
@@ -2265,6 +2504,12 @@
   var labelErrorGini = document.getElementById("labelErrorGini");
   var badgeStatus = document.getElementById("badgeStatus");
   var modelDescription = document.getElementById("modelDescription");
+  var btnAutoSelectKnot = document.getElementById("btnAutoSelectKnot");
+  var badgeOptimalKnot = document.getElementById("badgeOptimalKnot");
+  var modelSelectionTableBody = document.getElementById(
+    "modelSelectionTableBody"
+  );
+  var badgeBestModel = document.getElementById("badgeBestModel");
   function updateModelDescription() {
     if (!modelDescription) return;
     if (state.modelType === "hybrid") {
@@ -2359,6 +2604,37 @@
       if (badgeStatus) {
         badgeStatus.className = "badge badge-dark";
         badgeStatus.textContent = state.currentGastwirth.isCertified ? "Certified [G_L, G_U]" : "Verified";
+      }
+      try {
+        const msResult = evaluateModelSelection(state);
+        if (modelSelectionTableBody) {
+          modelSelectionTableBody.innerHTML = "";
+          for (const rec of msResult.comparison) {
+            const tr = document.createElement("tr");
+            const isBest = rec.deltaAic === 0;
+            if (isBest) tr.className = "best-model-row";
+            const deltaAicStr = rec.deltaAic === 0 ? "0.00" : `+${rec.deltaAic.toFixed(2)}`;
+            const weightPct = `${(rec.akaikeWeight * 100).toFixed(1)}%`;
+            const evidenceStr = isFinite(rec.evidenceRatio) ? rec.evidenceRatio <= 1.01 ? "1.0\xD7" : `${rec.evidenceRatio.toFixed(1)}\xD7` : "\u2014";
+            tr.innerHTML = `
+            <td class="model-name">${rec.modelName} ${isBest ? '<span class="badge badge-dark ms-1" style="font-size:0.62rem">Best Fit</span>' : ""}</td>
+            <td class="text-center font-monospace">${rec.parameterCount}</td>
+            <td class="text-end font-monospace">${(rec.rmse * 1e4).toFixed(2)}\u2031</td>
+            <td class="text-end font-monospace">${rec.logLikelihood.toFixed(2)}</td>
+            <td class="text-end font-monospace">${rec.aicc.toFixed(2)}</td>
+            <td class="text-end font-monospace">${deltaAicStr}</td>
+            <td class="text-end font-monospace">${weightPct}</td>
+            <td class="text-end font-monospace">${evidenceStr}</td>
+          `;
+            modelSelectionTableBody.appendChild(tr);
+          }
+        }
+        if (badgeBestModel && msResult.comparison.length > 0) {
+          const best = msResult.comparison[0];
+          badgeBestModel.textContent = `Best: ${best.modelName} (w\u1D62 = ${(best.akaikeWeight * 100).toFixed(1)}%)`;
+        }
+      } catch (msErr) {
+        console.warn("Model selection evaluation warning:", msErr);
       }
       renderLorenzChart(canvasLorenz, state);
       renderDerivativeChart(canvasDerivative, state);
@@ -2595,6 +2871,22 @@
       }
     }
   );
+  if (btnAutoSelectKnot) {
+    btnAutoSelectKnot.addEventListener("click", () => {
+      try {
+        const msResult = evaluateModelSelection(state);
+        const optKnot = msResult.knotOptimization.optimalKnot;
+        syncSplicingThreshold(optKnot);
+        if (badgeOptimalKnot) {
+          badgeOptimalKnot.style.display = "inline-block";
+          badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} (Score: ${msResult.knotOptimization.minScore.toFixed(1)}, \u03B1: ${msResult.knotOptimization.alpha.toFixed(2)})`;
+        }
+        recompute();
+      } catch (optErr) {
+        console.error("Auto knot selection failed:", optErr);
+      }
+    });
+  }
   window.addEventListener("resize", () => {
     renderLorenzChart(canvasLorenz, state);
     renderDerivativeChart(canvasDerivative, state);

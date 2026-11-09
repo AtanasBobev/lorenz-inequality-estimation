@@ -1,7 +1,7 @@
 import { HybridLorenzCurve } from "../../src/index.js";
 import { AppState, ModelType } from "./types.js";
 import { loadPreset } from "./presets.js";
-import { evaluateInequality } from "./engineBridge.js";
+import { evaluateInequality, evaluateModelSelection } from "./engineBridge.js";
 import { renderLorenzChart } from "./charts/lorenzChart.js";
 import { renderDerivativeChart } from "./charts/derivativeChart.js";
 import { renderTable } from "./tableEditor.js";
@@ -85,6 +85,12 @@ const labelBenchmarkGini = document.getElementById("labelBenchmarkGini") as HTML
 const labelErrorGini = document.getElementById("labelErrorGini") as HTMLElement | null;
 const badgeStatus = document.getElementById("badgeStatus") as HTMLElement | null;
 const modelDescription = document.getElementById("modelDescription") as HTMLElement | null;
+const btnAutoSelectKnot = document.getElementById("btnAutoSelectKnot") as HTMLButtonElement | null;
+const badgeOptimalKnot = document.getElementById("badgeOptimalKnot") as HTMLElement | null;
+const modelSelectionTableBody = document.getElementById(
+  "modelSelectionTableBody"
+) as HTMLElement | null;
+const badgeBestModel = document.getElementById("badgeBestModel") as HTMLElement | null;
 
 // Updates the informative model description text
 function updateModelDescription(): void {
@@ -200,6 +206,45 @@ function recompute(): void {
       badgeStatus.textContent = state.currentGastwirth.isCertified
         ? "Certified [G_L, G_U]"
         : "Verified";
+    }
+
+    // Evaluate Information Criteria (AIC / AICc / BIC) and Model Selection
+    try {
+      const msResult = evaluateModelSelection(state);
+      if (modelSelectionTableBody) {
+        modelSelectionTableBody.innerHTML = "";
+        for (const rec of msResult.comparison) {
+          const tr = document.createElement("tr");
+          const isBest = rec.deltaAic === 0;
+          if (isBest) tr.className = "best-model-row";
+
+          const deltaAicStr = rec.deltaAic === 0 ? "0.00" : `+${rec.deltaAic.toFixed(2)}`;
+          const weightPct = `${(rec.akaikeWeight * 100).toFixed(1)}%`;
+          const evidenceStr = isFinite(rec.evidenceRatio)
+            ? rec.evidenceRatio <= 1.01
+              ? "1.0×"
+              : `${rec.evidenceRatio.toFixed(1)}×`
+            : "—";
+
+          tr.innerHTML = `
+            <td class="model-name">${rec.modelName} ${isBest ? '<span class="badge badge-dark ms-1" style="font-size:0.62rem">Best Fit</span>' : ""}</td>
+            <td class="text-center font-monospace">${rec.parameterCount}</td>
+            <td class="text-end font-monospace">${(rec.rmse * 10000).toFixed(2)}‱</td>
+            <td class="text-end font-monospace">${rec.logLikelihood.toFixed(2)}</td>
+            <td class="text-end font-monospace">${rec.aicc.toFixed(2)}</td>
+            <td class="text-end font-monospace">${deltaAicStr}</td>
+            <td class="text-end font-monospace">${weightPct}</td>
+            <td class="text-end font-monospace">${evidenceStr}</td>
+          `;
+          modelSelectionTableBody.appendChild(tr);
+        }
+      }
+      if (badgeBestModel && msResult.comparison.length > 0) {
+        const best = msResult.comparison[0];
+        badgeBestModel.textContent = `Best: ${best.modelName} (wᵢ = ${(best.akaikeWeight * 100).toFixed(1)}%)`;
+      }
+    } catch (msErr: unknown) {
+      console.warn("Model selection evaluation warning:", msErr);
     }
 
     renderLorenzChart(canvasLorenz, state);
@@ -479,6 +524,23 @@ setupFileInput(
     }
   }
 );
+
+if (btnAutoSelectKnot) {
+  btnAutoSelectKnot.addEventListener("click", () => {
+    try {
+      const msResult = evaluateModelSelection(state);
+      const optKnot = msResult.knotOptimization.optimalKnot;
+      syncSplicingThreshold(optKnot);
+      if (badgeOptimalKnot) {
+        badgeOptimalKnot.style.display = "inline-block";
+        badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} (Score: ${msResult.knotOptimization.minScore.toFixed(1)}, α: ${msResult.knotOptimization.alpha.toFixed(2)})`;
+      }
+      recompute();
+    } catch (optErr) {
+      console.error("Auto knot selection failed:", optErr);
+    }
+  });
+}
 
 window.addEventListener("resize", () => {
   renderLorenzChart(canvasLorenz, state);
