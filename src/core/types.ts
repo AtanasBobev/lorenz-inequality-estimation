@@ -115,3 +115,40 @@ export interface InequalityMetrics {
   readonly topIncomeShares?: TopIncomeShares;
   readonly povertyElasticities?: PovertyElasticities;
 }
+
+export interface ModelEvaluationRecord {
+  readonly modelName: string;
+  readonly parameterCount: number;
+  readonly sampleSize: number;
+  readonly rss: number;
+  readonly mse: number;
+  readonly rmse: number;
+  readonly mae: number;
+  readonly rSquared: number;
+  readonly logLikelihood: number;
+  readonly aic: number;
+  readonly aicc: number;
+  readonly bic: number;
+  readonly deltaAic: number;
+  readonly akaikeWeight: number;
+  readonly evidenceRatio: number;
+}
+
+export interface KnotSelectionRecord {
+  readonly pStar: number;
+  readonly tailAlpha: number;
+  readonly curvatureJump: number;
+  readonly rss: number;
+  readonly aic: number;
+  readonly aicc: number;
+  readonly bic: number;
+  readonly penalizedScore: number;
+  readonly isAdmissible: boolean;
+}
+
+export interface KnotOptimizationResult {
+  readonly optimalKnot: number;
+  readonly minScore: number;
+  readonly optimalAlpha: number;
+  readonly records: readonly KnotSelectionRecord[];
+}
