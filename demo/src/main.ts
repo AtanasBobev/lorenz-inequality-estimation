@@ -334,6 +334,11 @@ function syncSplicingThreshold(val: number): void {
 }
 
 function applyPreset(key: string): void {
+  if (badgeOptimalKnot) {
+    badgeOptimalKnot.style.display = "none";
+    badgeOptimalKnot.textContent = "";
+  }
+
   const loaded = loadPreset(key);
   state.dataset = {
     meanIncome: loaded.dataset.meanIncome,
@@ -379,10 +384,18 @@ if (selectModelType) {
 
 if (rangeSplice) {
   rangeSplice.addEventListener("input", (e: Event) => {
+    if (badgeOptimalKnot) {
+      badgeOptimalKnot.style.display = "none";
+      badgeOptimalKnot.textContent = "";
+    }
     const val = parseFloat((e.target as HTMLInputElement).value);
     syncSplicingThreshold(val);
   });
   rangeSplice.addEventListener("change", (e: Event) => {
+    if (badgeOptimalKnot) {
+      badgeOptimalKnot.style.display = "none";
+      badgeOptimalKnot.textContent = "";
+    }
     const val = parseFloat((e.target as HTMLInputElement).value);
     syncSplicingThreshold(val);
   });
@@ -390,10 +403,18 @@ if (rangeSplice) {
 
 if (numSplice) {
   numSplice.addEventListener("input", (e: Event) => {
+    if (badgeOptimalKnot) {
+      badgeOptimalKnot.style.display = "none";
+      badgeOptimalKnot.textContent = "";
+    }
     const val = parseFloat((e.target as HTMLInputElement).value);
     if (!isNaN(val)) syncSplicingThreshold(val);
   });
   numSplice.addEventListener("change", (e: Event) => {
+    if (badgeOptimalKnot) {
+      badgeOptimalKnot.style.display = "none";
+      badgeOptimalKnot.textContent = "";
+    }
     const val = parseFloat((e.target as HTMLInputElement).value);
     if (!isNaN(val)) syncSplicingThreshold(val);
   });
@@ -532,12 +553,16 @@ if (btnAutoSelectKnot) {
       const optKnot = msResult.knotOptimization.optimalKnot;
       syncSplicingThreshold(optKnot);
       if (badgeOptimalKnot) {
-        badgeOptimalKnot.style.display = "inline-block";
         badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} (Score: ${msResult.knotOptimization.minScore.toFixed(1)}, α: ${msResult.knotOptimization.alpha.toFixed(2)})`;
+        badgeOptimalKnot.style.display = "inline-block";
       }
       recompute();
     } catch (optErr) {
       console.error("Auto knot selection failed:", optErr);
+      if (badgeOptimalKnot) {
+        badgeOptimalKnot.style.display = "none";
+        badgeOptimalKnot.textContent = "";
+      }
     }
   });
 }

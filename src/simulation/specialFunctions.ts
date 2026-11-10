@@ -68,73 +68,90 @@ export function inverseNormalCdf(p: number): number {
   }
 }
 
-// Log-gamma function via Lanczos approximation.
+// Log-gamma function via standard Lanczos approximation (g = 7, N = 9).
 export function logGamma(z: number): number {
-  const c = [
-    57.15623566586292, -59.59796035547549, 14.136097974741746, -0.4919138160976202,
-    0.00003399464998481189, 0.00004652362892704858, -0.00009837447530487956, 0.00015808870322437947,
-    -0.00021013412297399777, 0.08333333333333333, 0.5772156649015329
+  if (z <= 0.0) {
+    throw new Error(`Gamma function undefined for non-positive numbers (received ${z}).`);
+  }
+
+  const p = [
+    0.9999999999998099, 676.5203681218851, -1259.139216722403, 771.3234287776531,
+    -176.6150291621406, 12.50734327868691, -0.138571095836526, 9.984369578019572e-6,
+    1.505632735149312e-7
   ];
+  const g = 7;
 
   if (z < 0.5) {
-    return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
+    return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1.0 - z);
   }
 
   const x = z - 1.0;
-  let sum = c[10];
-  for (let i = 0; i < 9; i++) {
-    sum += c[i] / (x + i + 1);
+  let aSum = p[0];
+  for (let i = 1; i < p.length; i++) {
+    aSum += p[i] / (x + i);
   }
 
-  const t = x + 4.65;
-  return (x + 0.5) * Math.log(t) - t + 0.5 * Math.log(2 * Math.PI) + Math.log(sum);
+  const t = x + g + 0.5;
+  return 0.5 * Math.log(2.0 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(aSum);
 }
 
 export function gamma(z: number): number {
   return Math.exp(logGamma(z));
 }
 
-// Regularized incomplete beta function I_x(a, b) via Lentz continued fractions.
+// Evaluates the continued fraction factor for the incomplete beta function (Lentz's method).
+function betacf(a: number, b: number, x: number): number {
+  const MAXIT = 200;
+  const EPS = 1e-12;
+  const FPMIN = 1e-30;
+  const qab = a + b;
+  const qap = a + 1.0;
+  const qam = a - 1.0;
+
+  let c = 1.0;
+  let d = 1.0 - (qab * x) / qap;
+  if (Math.abs(d) < FPMIN) d = FPMIN;
+  d = 1.0 / d;
+  let h = d;
+
+  for (let m = 1; m <= MAXIT; m++) {
+    const m2 = 2 * m;
+    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2));
+    d = 1.0 + aa * d;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = 1.0 + aa / c;
+    if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1.0 / d;
+    h *= d * c;
+
+    aa = -((a + m) * (qab + m) * x) / ((a + m2) * (qap + m2));
+    d = 1.0 + aa * d;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = 1.0 + aa / c;
+    if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1.0 / d;
+    const del = d * c;
+    h *= del;
+
+    if (Math.abs(del - 1.0) < EPS) {
+      break;
+    }
+  }
+
+  return h;
+}
+
+// Regularized incomplete beta function I_x(a, b).
 export function regularizedIncompleteBeta(a: number, b: number, x: number): number {
   if (x <= 0.0) return 0.0;
   if (x >= 1.0) return 1.0;
 
+  // Use symmetry relation if x > (a + 1) / (a + b + 2)
   if (x > (a + 1.0) / (a + b + 2.0)) {
     return 1.0 - regularizedIncompleteBeta(b, a, 1.0 - x);
   }
 
   const lbeta = logGamma(a) + logGamma(b) - logGamma(a + b);
   const front = Math.exp(Math.log(x) * a + Math.log(1.0 - x) * b - lbeta) / a;
-
-  let f = 1.0;
-  let c = 1.0;
-  let d = 0.0;
-  const tiny = 1e-30;
-
-  for (let m = 1; m <= 200; m++) {
-    let numerator: number;
-    if (m % 2 === 0) {
-      const k = m / 2;
-      numerator = (k * (b - k) * x) / ((a + 2 * k - 1) * (a + 2 * k));
-    } else {
-      const k = (m - 1) / 2;
-      numerator = -((a + k) * (a + b + k) * x) / ((a + 2 * k) * (a + 2 * k + 1));
-    }
-
-    d = 1.0 + numerator * d;
-    if (Math.abs(d) < tiny) d = tiny;
-    d = 1.0 / d;
-
-    c = 1.0 + numerator / c;
-    if (Math.abs(c) < tiny) c = tiny;
-
-    const delta = c * d;
-    f *= delta;
-
-    if (Math.abs(delta - 1.0) < 1e-12) {
-      break;
-    }
-  }
-
-  return Math.min(1.0, Math.max(0.0, front * (1.0 / f)));
+  return Math.min(1.0, Math.max(0.0, front * betacf(a, b, x)));
 }

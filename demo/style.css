@@ -400,6 +400,11 @@ body {
   border-radius: 0.25rem;
 }
 
+.badge:empty,
+#badgeOptimalKnot:empty {
+  display: none !important;
+}
+
 .badge-dark {
   color: #ffffff;
   background-color: #212529;

@@ -1037,29 +1037,66 @@
     }
   }
   function logGamma(z) {
-    const c = [
-      57.15623566586292,
-      -59.59796035547549,
-      14.136097974741746,
-      -0.4919138160976202,
-      3399464998481189e-20,
-      4652362892704858e-20,
-      -9837447530487956e-20,
-      15808870322437947e-20,
-      -21013412297399777e-20,
-      0.08333333333333333,
-      0.5772156649015329
+    if (z <= 0) {
+      throw new Error(`Gamma function undefined for non-positive numbers (received ${z}).`);
+    }
+    const p = [
+      0.9999999999998099,
+      676.5203681218851,
+      -1259.139216722403,
+      771.3234287776531,
+      -176.6150291621406,
+      12.50734327868691,
+      -0.138571095836526,
+      9984369578019572e-21,
+      1505632735149312e-22
     ];
+    const g = 7;
     if (z < 0.5) {
-      return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
+      return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1 - z);
     }
     const x = z - 1;
-    let sum = c[10];
-    for (let i = 0; i < 9; i++) {
-      sum += c[i] / (x + i + 1);
+    let aSum = p[0];
+    for (let i = 1; i < p.length; i++) {
+      aSum += p[i] / (x + i);
     }
-    const t = x + 4.65;
-    return (x + 0.5) * Math.log(t) - t + 0.5 * Math.log(2 * Math.PI) + Math.log(sum);
+    const t = x + g + 0.5;
+    return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(aSum);
+  }
+  function betacf(a, b, x) {
+    const MAXIT = 200;
+    const EPS = 1e-12;
+    const FPMIN = 1e-30;
+    const qab = a + b;
+    const qap = a + 1;
+    const qam = a - 1;
+    let c = 1;
+    let d = 1 - qab * x / qap;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    d = 1 / d;
+    let h = d;
+    for (let m = 1; m <= MAXIT; m++) {
+      const m2 = 2 * m;
+      let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+      d = 1 + aa * d;
+      if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c;
+      if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d;
+      h *= d * c;
+      aa = -((a + m) * (qab + m) * x) / ((a + m2) * (qap + m2));
+      d = 1 + aa * d;
+      if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c;
+      if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d;
+      const del = d * c;
+      h *= del;
+      if (Math.abs(del - 1) < EPS) {
+        break;
+      }
+    }
+    return h;
   }
   function regularizedIncompleteBeta(a, b, x) {
     if (x <= 0) return 0;
@@ -1069,31 +1106,7 @@
     }
     const lbeta = logGamma(a) + logGamma(b) - logGamma(a + b);
     const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lbeta) / a;
-    let f = 1;
-    let c = 1;
-    let d = 0;
-    const tiny = 1e-30;
-    for (let m = 1; m <= 200; m++) {
-      let numerator;
-      if (m % 2 === 0) {
-        const k = m / 2;
-        numerator = k * (b - k) * x / ((a + 2 * k - 1) * (a + 2 * k));
-      } else {
-        const k = (m - 1) / 2;
-        numerator = -((a + k) * (a + b + k) * x) / ((a + 2 * k) * (a + 2 * k + 1));
-      }
-      d = 1 + numerator * d;
-      if (Math.abs(d) < tiny) d = tiny;
-      d = 1 / d;
-      c = 1 + numerator / c;
-      if (Math.abs(c) < tiny) c = tiny;
-      const delta = c * d;
-      f *= delta;
-      if (Math.abs(delta - 1) < 1e-12) {
-        break;
-      }
-    }
-    return Math.min(1, Math.max(0, front * (1 / f)));
+    return Math.min(1, Math.max(0, front * betacf(a, b, x)));
   }
 
   // src/simulation/LogNormalDistribution.ts
@@ -2709,6 +2722,10 @@
     recompute();
   }
   function applyPreset(key) {
+    if (badgeOptimalKnot) {
+      badgeOptimalKnot.style.display = "none";
+      badgeOptimalKnot.textContent = "";
+    }
     const loaded = loadPreset(key);
     state.dataset = {
       meanIncome: loaded.dataset.meanIncome,
@@ -2747,20 +2764,36 @@
   }
   if (rangeSplice) {
     rangeSplice.addEventListener("input", (e) => {
+      if (badgeOptimalKnot) {
+        badgeOptimalKnot.style.display = "none";
+        badgeOptimalKnot.textContent = "";
+      }
       const val = parseFloat(e.target.value);
       syncSplicingThreshold(val);
     });
     rangeSplice.addEventListener("change", (e) => {
+      if (badgeOptimalKnot) {
+        badgeOptimalKnot.style.display = "none";
+        badgeOptimalKnot.textContent = "";
+      }
       const val = parseFloat(e.target.value);
       syncSplicingThreshold(val);
     });
   }
   if (numSplice) {
     numSplice.addEventListener("input", (e) => {
+      if (badgeOptimalKnot) {
+        badgeOptimalKnot.style.display = "none";
+        badgeOptimalKnot.textContent = "";
+      }
       const val = parseFloat(e.target.value);
       if (!isNaN(val)) syncSplicingThreshold(val);
     });
     numSplice.addEventListener("change", (e) => {
+      if (badgeOptimalKnot) {
+        badgeOptimalKnot.style.display = "none";
+        badgeOptimalKnot.textContent = "";
+      }
       const val = parseFloat(e.target.value);
       if (!isNaN(val)) syncSplicingThreshold(val);
     });
@@ -2878,12 +2911,16 @@
         const optKnot = msResult.knotOptimization.optimalKnot;
         syncSplicingThreshold(optKnot);
         if (badgeOptimalKnot) {
-          badgeOptimalKnot.style.display = "inline-block";
           badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} (Score: ${msResult.knotOptimization.minScore.toFixed(1)}, \u03B1: ${msResult.knotOptimization.alpha.toFixed(2)})`;
+          badgeOptimalKnot.style.display = "inline-block";
         }
         recompute();
       } catch (optErr) {
         console.error("Auto knot selection failed:", optErr);
+        if (badgeOptimalKnot) {
+          badgeOptimalKnot.style.display = "none";
+          badgeOptimalKnot.textContent = "";
+        }
       }
     });
   }
