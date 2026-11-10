@@ -2459,7 +2459,7 @@
     },
     currency: initialPreset.currency,
     modelType: "hybrid",
-    splicingThreshold: 0.8,
+    splicingThreshold: 0.9,
     povertyLine: initialPreset.poverty,
     currentModel: null,
     currentHeadcount: 0.329,
@@ -2748,6 +2748,11 @@
     }
     if (labelCurrency) labelCurrency.textContent = state.currency;
     if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
+    const pts = state.dataset.points;
+    if (pts.length >= 3) {
+      const highestInterior = pts[pts.length - 2].populationShare;
+      syncSplicingThreshold(highestInterior);
+    }
     updateTable();
     recompute();
   }

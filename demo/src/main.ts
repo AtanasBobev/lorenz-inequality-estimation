@@ -22,7 +22,7 @@ const state: AppState = {
   },
   currency: initialPreset.currency,
   modelType: "hybrid",
-  splicingThreshold: 0.8,
+  splicingThreshold: 0.9,
   povertyLine: initialPreset.poverty,
   currentModel: null,
   currentHeadcount: 0.329,
@@ -363,6 +363,13 @@ function applyPreset(key: string): void {
   }
   if (labelCurrency) labelCurrency.textContent = state.currency;
   if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
+
+  // Align default splicing threshold to the dataset's highest interior quantile knot
+  const pts = state.dataset.points;
+  if (pts.length >= 3) {
+    const highestInterior = pts[pts.length - 2].populationShare;
+    syncSplicingThreshold(highestInterior);
+  }
 
   updateTable();
   recompute();
