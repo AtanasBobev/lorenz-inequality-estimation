@@ -2630,7 +2630,7 @@
             const weightPct = `${(rec.akaikeWeight * 100).toFixed(1)}%`;
             const evidenceStr = isFinite(rec.evidenceRatio) ? rec.evidenceRatio <= 1.01 ? "1.0\xD7" : `${rec.evidenceRatio.toFixed(1)}\xD7` : "\u2014";
             tr.innerHTML = `
-            <td class="model-name">${rec.modelName} ${isBest ? '<span class="badge badge-dark ms-1" style="font-size:0.62rem">Best Fit</span>' : ""}</td>
+            <td class="model-name">${rec.modelName} ${isBest ? '<span class="badge badge-secondary ms-1" style="font-size:0.62rem">Lowest AICc</span>' : ""}</td>
             <td class="text-center font-monospace">${rec.parameterCount}</td>
             <td class="text-end font-monospace">${(rec.rmse * 1e4).toFixed(2)}\u2031</td>
             <td class="text-end font-monospace">${rec.logLikelihood.toFixed(2)}</td>
@@ -2644,7 +2644,7 @@
         }
         if (badgeBestModel && msResult.comparison.length > 0) {
           const best = msResult.comparison[0];
-          badgeBestModel.textContent = `Best: ${best.modelName} (w\u1D62 = ${(best.akaikeWeight * 100).toFixed(1)}%)`;
+          badgeBestModel.textContent = `Lowest In-Sample AICc: ${best.modelName} (w\u1D62 = ${(best.akaikeWeight * 100).toFixed(1)}%)`;
         }
       } catch (msErr) {
         console.warn("Model selection evaluation warning:", msErr);

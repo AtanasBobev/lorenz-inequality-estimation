@@ -227,7 +227,7 @@ function recompute(): void {
             : "—";
 
           tr.innerHTML = `
-            <td class="model-name">${rec.modelName} ${isBest ? '<span class="badge badge-dark ms-1" style="font-size:0.62rem">Best Fit</span>' : ""}</td>
+            <td class="model-name">${rec.modelName} ${isBest ? '<span class="badge badge-secondary ms-1" style="font-size:0.62rem">Lowest AICc</span>' : ""}</td>
             <td class="text-center font-monospace">${rec.parameterCount}</td>
             <td class="text-end font-monospace">${(rec.rmse * 10000).toFixed(2)}‱</td>
             <td class="text-end font-monospace">${rec.logLikelihood.toFixed(2)}</td>
@@ -241,7 +241,7 @@ function recompute(): void {
       }
       if (badgeBestModel && msResult.comparison.length > 0) {
         const best = msResult.comparison[0];
-        badgeBestModel.textContent = `Best: ${best.modelName} (wᵢ = ${(best.akaikeWeight * 100).toFixed(1)}%)`;
+        badgeBestModel.textContent = `Lowest In-Sample AICc: ${best.modelName} (wᵢ = ${(best.akaikeWeight * 100).toFixed(1)}%)`;
       }
     } catch (msErr: unknown) {
       console.warn("Model selection evaluation warning:", msErr);
