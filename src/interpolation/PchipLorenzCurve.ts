@@ -5,6 +5,8 @@ export interface PchipOptions {
   readonly enforceConvexity?: boolean;
 }
 
+// Shape-preserving cubic Hermite spline (Fritsch-Carlson) with iterative convexity cone projection
+// TODO: Experiment with quadratic programming (QP) slope projection to minimize L2 slope perturbation
 export class PchipLorenzCurve extends LorenzModel {
   private readonly knotSlopes: number[];
   private readonly aCoeffs: number[];
@@ -17,89 +19,93 @@ export class PchipLorenzCurve extends LorenzModel {
     super(dataset);
     const shouldEnforceConvexity = options.enforceConvexity ?? true;
 
-    const n = this.points.length;
-    const h = new Float64Array(n - 1);
-    const delta = new Float64Array(n - 1);
+    const knotCount = this.points.length;
+    const intervalWidths = new Float64Array(knotCount - 1);
+    const secantSlopes = new Float64Array(knotCount - 1);
 
-    for (let i = 0; i < n - 1; i++) {
-      h[i] = this.points[i + 1].populationShare - this.points[i].populationShare;
-      delta[i] = (this.points[i + 1].incomeShare - this.points[i].incomeShare) / h[i];
+    for (let i = 0; i < knotCount - 1; i++) {
+      intervalWidths[i] = this.points[i + 1].populationShare - this.points[i].populationShare;
+      secantSlopes[i] =
+        (this.points[i + 1].incomeShare - this.points[i].incomeShare) / intervalWidths[i];
     }
 
-    const d = new Float64Array(n);
+    const slopes = new Float64Array(knotCount);
 
-    // Initial Fritsch-Carlson harmonic mean slopes
-    for (let i = 1; i < n - 1; i++) {
-      if (delta[i - 1] * delta[i] <= 0) {
-        d[i] = 0;
+    // Interior tangents via Fritsch-Carlson harmonic mean of adjacent secant slopes
+    for (let i = 1; i < knotCount - 1; i++) {
+      if (secantSlopes[i - 1] * secantSlopes[i] <= 0) {
+        slopes[i] = 0;
       } else {
-        d[i] = (2 * delta[i - 1] * delta[i]) / (delta[i - 1] + delta[i]);
+        slopes[i] =
+          (2 * secantSlopes[i - 1] * secantSlopes[i]) / (secantSlopes[i - 1] + secantSlopes[i]);
       }
     }
 
-    // Endpoint slopes: one-sided shape-preserving derivatives
-    d[0] = Math.max(0, 1.5 * delta[0] - 0.5 * d[1]);
-    d[n - 1] = Math.max(0, 1.5 * delta[n - 2] - 0.5 * d[n - 2]);
+    // One-sided endpoint slopes clamped to stay non-negative
+    slopes[0] = Math.max(0, 1.5 * secantSlopes[0] - 0.5 * slopes[1]);
+    slopes[knotCount - 1] = Math.max(
+      0,
+      1.5 * secantSlopes[knotCount - 2] - 0.5 * slopes[knotCount - 2]
+    );
 
     let repaired = false;
 
-    // Convexity verification and repair step
-    // A cubic segment is convex iff 2*d_i + d_{i+1} <= 3*Delta_i AND d_i + 2*d_{i+1} >= 3*Delta_i
+    // A cubic Hermite segment is convex on [p_i, p_{i+1}] iff:
+    // 2*d_i + d_{i+1} <= 3*Delta_i  AND  d_i + 2*d_{i+1} >= 3*Delta_i
     if (shouldEnforceConvexity) {
-      repaired = this.repairConvexity(d, delta, n);
+      repaired = this.repairConvexity(slopes, secantSlopes, knotCount);
     }
 
-    this.knotSlopes = Array.from(d);
+    this.knotSlopes = Array.from(slopes);
     this.wasConvexityRepaired = repaired;
 
-    this.aCoeffs = new Array(n - 1);
-    this.bCoeffs = new Array(n - 1);
-    this.cCoeffs = new Array(n - 1);
-    this.dCoeffs = new Array(n - 1);
+    this.aCoeffs = new Array(knotCount - 1);
+    this.bCoeffs = new Array(knotCount - 1);
+    this.cCoeffs = new Array(knotCount - 1);
+    this.dCoeffs = new Array(knotCount - 1);
 
-    for (let i = 0; i < n - 1; i++) {
+    for (let i = 0; i < knotCount - 1; i++) {
       this.aCoeffs[i] = this.points[i].incomeShare;
-      this.bCoeffs[i] = d[i];
-      this.cCoeffs[i] = (3 * delta[i] - 2 * d[i] - d[i + 1]) / h[i];
-      this.dCoeffs[i] = (d[i] + d[i + 1] - 2 * delta[i]) / (h[i] * h[i]);
+      this.bCoeffs[i] = slopes[i];
+      this.cCoeffs[i] = (3 * secantSlopes[i] - 2 * slopes[i] - slopes[i + 1]) / intervalWidths[i];
+      this.dCoeffs[i] =
+        (slopes[i] + slopes[i + 1] - 2 * secantSlopes[i]) / (intervalWidths[i] * intervalWidths[i]);
     }
   }
 
-  private repairConvexity(d: Float64Array, delta: Float64Array, n: number): boolean {
+  private repairConvexity(
+    slopes: Float64Array,
+    secantSlopes: Float64Array,
+    knotCount: number
+  ): boolean {
     let anyRepaired = false;
     const maxPasses = 5;
 
     for (let pass = 0; pass < maxPasses; pass++) {
       let passRepaired = false;
 
-      for (let i = 0; i < n - 1; i++) {
-        const secant = delta[i];
+      for (let i = 0; i < knotCount - 1; i++) {
+        const secant = secantSlopes[i];
 
-        // 1. Initial slope too fast -> decelerates -> concave violation at left
-        if (2 * d[i] + d[i + 1] > 3 * secant) {
-          const maxAllowedD = Math.max(0, (3 * secant - d[i + 1]) / 2);
-          if (maxAllowedD < d[i]) {
-            d[i] = maxAllowedD;
-            passRepaired = true;
-          }
-        }
-
-        // 2. Final slope too slow -> concave violation at right
-        if (d[i] + 2 * d[i + 1] < 3 * secant) {
-          const minAllowedDNext = (3 * secant - d[i]) / 2;
-          if (minAllowedDNext > d[i + 1]) {
-            d[i + 1] = minAllowedDNext;
-            passRepaired = true;
-          }
-        }
-
-        // Maintain ascending ordering of marginal incomes (y(p) / mu)
-        if (d[i] > secant) {
-          d[i] = secant;
+        // Left endpoint slope is too steep, causing concave deceleration at the start of the bracket
+        if (2 * slopes[i] + slopes[i + 1] > 3 * secant && slopes[i] > 0) {
+          slopes[i] = Math.max(0, (3 * secant - slopes[i + 1]) / 2);
           passRepaired = true;
         }
-        if (d[i + 1] < secant) {
-          d[i + 1] = secant;
+
+        // Right endpoint slope is too flat, causing a concave inflection near the end of the bracket
+        if (slopes[i] + 2 * slopes[i + 1] < 3 * secant) {
+          slopes[i + 1] = (3 * secant - slopes[i]) / 2;
+          passRepaired = true;
+        }
+
+        // Keep knot slopes bracketed by the interval secant slope so marginal income stays non-decreasing
+        if (slopes[i] > secant) {
+          slopes[i] = secant;
+          passRepaired = true;
+        }
+        if (slopes[i + 1] < secant) {
+          slopes[i + 1] = secant;
           passRepaired = true;
         }
       }
@@ -116,28 +122,32 @@ export class PchipLorenzCurve extends LorenzModel {
 
   public evaluate(p: number): number {
     const clampedP = this.clampPopulation(p);
-    const i = this.findKnotInterval(clampedP);
-    const dx = clampedP - this.points[i].populationShare;
+    const bracketIdx = this.findKnotInterval(clampedP);
+    const localOffset = clampedP - this.points[bracketIdx].populationShare;
     return (
-      this.aCoeffs[i] +
-      this.bCoeffs[i] * dx +
-      this.cCoeffs[i] * dx * dx +
-      this.dCoeffs[i] * dx * dx * dx
+      this.aCoeffs[bracketIdx] +
+      this.bCoeffs[bracketIdx] * localOffset +
+      this.cCoeffs[bracketIdx] * localOffset * localOffset +
+      this.dCoeffs[bracketIdx] * localOffset * localOffset * localOffset
     );
   }
 
   public derivative(p: number): number {
     const clampedP = this.clampPopulation(p);
-    const i = this.findKnotInterval(clampedP);
-    const dx = clampedP - this.points[i].populationShare;
-    return this.bCoeffs[i] + 2 * this.cCoeffs[i] * dx + 3 * this.dCoeffs[i] * dx * dx;
+    const bracketIdx = this.findKnotInterval(clampedP);
+    const localOffset = clampedP - this.points[bracketIdx].populationShare;
+    return (
+      this.bCoeffs[bracketIdx] +
+      2 * this.cCoeffs[bracketIdx] * localOffset +
+      3 * this.dCoeffs[bracketIdx] * localOffset * localOffset
+    );
   }
 
   public secondDerivative(p: number): number {
     const clampedP = this.clampPopulation(p);
-    const i = this.findKnotInterval(clampedP);
-    const dx = clampedP - this.points[i].populationShare;
-    return 2 * this.cCoeffs[i] + 6 * this.dCoeffs[i] * dx;
+    const bracketIdx = this.findKnotInterval(clampedP);
+    const localOffset = clampedP - this.points[bracketIdx].populationShare;
+    return 2 * this.cCoeffs[bracketIdx] + 6 * this.dCoeffs[bracketIdx] * localOffset;
   }
 
   public getKnotSlopes(): readonly number[] {

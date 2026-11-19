@@ -2,7 +2,7 @@ import { QuantileDataset, QuantilePoint } from "../core/types.js";
 import { SyntheticDistribution } from "./SyntheticDistribution.js";
 import { erf, inverseNormalCdf, standardNormalCdf } from "./specialFunctions.js";
 
-// Log-normal distribution with analytical Lorenz curve and Gini index.
+// Log-normal distribution with analytical Lorenz curve and Gini index
 export class LogNormalDistribution implements SyntheticDistribution {
   public readonly name: string;
   public readonly sigma: number;

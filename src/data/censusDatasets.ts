@@ -15,7 +15,7 @@ export interface CensusBenchmarkEntry {
   readonly dataset: QuantileDataset;
 }
 
-// Bulgarian National Statistical Institute (NSI) 2022 disposable income deciles.
+// Bulgarian National Statistical Institute (NSI) 2022 disposable income deciles
 export const BULGARIAN_NSI_2022: CensusBenchmarkEntry = {
   metadata: {
     country: "Bulgaria",
@@ -44,7 +44,7 @@ export const BULGARIAN_NSI_2022: CensusBenchmarkEntry = {
   }
 };
 
-// Bulgarian National Statistical Institute (NSI) 2022 quintile aggregation.
+// Bulgarian National Statistical Institute (NSI) 2022 quintile aggregation
 export const BULGARIAN_NSI_QUINTILES_2022: CensusBenchmarkEntry = {
   metadata: {
     country: "Bulgaria",
@@ -68,7 +68,7 @@ export const BULGARIAN_NSI_QUINTILES_2022: CensusBenchmarkEntry = {
   }
 };
 
-// Eurostat EU-27 2022 equivalised disposable income deciles.
+// Eurostat EU-27 2022 equivalised disposable income deciles
 export const EUROSTAT_EU27_2022: CensusBenchmarkEntry = {
   metadata: {
     country: "European Union (EU-27)",
@@ -97,7 +97,7 @@ export const EUROSTAT_EU27_2022: CensusBenchmarkEntry = {
   }
 };
 
-// United States Census Bureau CPS 2022 household income deciles.
+// United States Census Bureau CPS 2022 household income deciles
 export const US_CENSUS_CPS_2022: CensusBenchmarkEntry = {
   metadata: {
     country: "United States",
@@ -127,7 +127,7 @@ export const US_CENSUS_CPS_2022: CensusBenchmarkEntry = {
   }
 };
 
-// Catalog of empirical census benchmark datasets.
+// Catalog of empirical census benchmark datasets
 export const CENSUS_BENCHMARK_CATALOG: readonly CensusBenchmarkEntry[] = [
   BULGARIAN_NSI_2022,
   BULGARIAN_NSI_QUINTILES_2022,

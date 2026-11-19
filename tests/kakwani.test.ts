@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { KakwaniPodderCurve, QuantileDataset, SimpsonsIntegrator } from "../src/index.js";
+import {
+  KakwaniPodderCurve,
+  ConsumptionRegressor,
+  QuantileDataset,
+  SimpsonsIntegrator
+} from "../src/index.js";
 
 describe("KakwaniPodderCurve Parametric Benchmark", () => {
   const decileDataset: QuantileDataset = {
@@ -44,5 +49,60 @@ describe("KakwaniPodderCurve Parametric Benchmark", () => {
     const result = integrator.integrate(model, 0, 1, 200);
     expect(result.giniIndex).toBeGreaterThan(0.25);
     expect(result.giniIndex).toBeLessThan(0.45);
+  });
+
+  it("handles second derivatives, sparse/collinear datasets, and ConsumptionRegressor edge cases", () => {
+    const model = new KakwaniPodderCurve(decileDataset);
+    expect(model.secondDerivative(0)).toBe(0);
+    expect(model.secondDerivative(1)).toBe(0);
+    expect(model.secondDerivative(0.5)).toBeGreaterThan(0);
+
+    // Fewer than 3 valid interior points triggers fallback parameters
+    const sparseDataset: QuantileDataset = {
+      meanIncome: 20000,
+      points: [
+        { populationShare: 0.0, incomeShare: 0.0 },
+        { populationShare: 0.5, incomeShare: 0.25 },
+        { populationShare: 1.0, incomeShare: 1.0 }
+      ]
+    };
+    const sparseModel = new KakwaniPodderCurve(sparseDataset);
+    expect(sparseModel.params.alpha).toBe(0.8);
+
+    // Near-collinear interior knots (spaced by 1e-6) trigger determinant < 1e-12 fallback
+    const collinearDataset: QuantileDataset = {
+      meanIncome: 20000,
+      points: [
+        { populationShare: 0.0, incomeShare: 0.0 },
+        { populationShare: 0.5, incomeShare: 0.25 },
+        { populationShare: 0.500001, incomeShare: 0.250001 },
+        { populationShare: 0.500002, incomeShare: 0.250002 },
+        { populationShare: 1.0, incomeShare: 1.0 }
+      ]
+    };
+    const collinearModel = new KakwaniPodderCurve(collinearDataset);
+    expect(collinearModel.params.rSquared).toBe(0.9);
+
+    // Constant egalitarian gap (p_i - L_i = 0.1) gives totalSumSquares = 0 -> rSquared = 1.0
+    const constantGapDataset: QuantileDataset = {
+      meanIncome: 20000,
+      points: [
+        { populationShare: 0.0, incomeShare: 0.0 },
+        { populationShare: 0.2, incomeShare: 0.1 },
+        { populationShare: 0.5, incomeShare: 0.4 },
+        { populationShare: 0.8, incomeShare: 0.7 },
+        { populationShare: 1.0, incomeShare: 1.0 }
+      ]
+    };
+    const constantGapModel = new KakwaniPodderCurve(constantGapDataset);
+    expect(constantGapModel.params.rSquared).toBe(1.0);
+
+    const regressor = new ConsumptionRegressor();
+    expect(() => regressor.fitLinear([100], [80])).toThrow(/at least 2 observations/);
+    expect(() => regressor.fitLinear([100, Number.NaN], [80, 90])).toThrow(/Non-finite/);
+    expect(() => regressor.fitLinear([100, 100, 100], [80, 90, 100])).toThrow(/zero variance/);
+
+    const flatConsumption = regressor.fitLinear([100, 200, 300], [50, 50, 50]);
+    expect(flatConsumption.rSquared).toBe(1.0);
   });
 });

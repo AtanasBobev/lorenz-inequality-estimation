@@ -112,4 +112,76 @@ describe("HybridLorenzCurve", () => {
     expect(incMedian).toBeGreaterThan(0);
     expect(incTop5).toBeGreaterThan(incMedian);
   });
+
+  it("covers ParetoLorenzCurve and HybridLorenzCurve getters, analytical integrals, and edge cases", () => {
+    // ParetoLorenzCurve with automatic alpha estimation from dataset
+    const autoPareto = new ParetoLorenzCurve(decileDataset);
+    expect(autoPareto.getAlpha()).toBeGreaterThan(1.0);
+    expect(autoPareto.derivative(0)).toBeCloseTo(1 - 1 / autoPareto.getAlpha(), 8);
+    expect(autoPareto.secondDerivative(0.5)).toBeGreaterThan(0);
+    expect(autoPareto.analyticalAreaUnderCurve()).toBeCloseTo(
+      (1 - autoPareto.analyticalGini()) / 2,
+      8
+    );
+
+    // ParetoLorenzCurve fallback when reference knot has 0 income share or diagonal ratio
+    const zeroRefDataset: QuantileDataset = {
+      meanIncome: 10000,
+      points: [
+        { populationShare: 0, incomeShare: 0 },
+        { populationShare: 0.8, incomeShare: 0 },
+        { populationShare: 1, incomeShare: 1 }
+      ]
+    };
+    expect(new ParetoLorenzCurve(zeroRefDataset).getAlpha()).toBe(2.0);
+
+    const diagonalRefDataset: QuantileDataset = {
+      meanIncome: 10000,
+      points: [
+        { populationShare: 0, incomeShare: 0 },
+        { populationShare: 0.8, incomeShare: 0.8 },
+        { populationShare: 1, incomeShare: 1 }
+      ]
+    };
+    expect(new ParetoLorenzCurve(diagonalRefDataset).getAlpha()).toBe(2.0);
+
+    // HybridLorenzCurve getters, explicit tailAlpha, 3-knot default splice, and odd subinterval count
+    const explicitHybrid = new HybridLorenzCurve(decileDataset, {
+      splicePoint: 0.8,
+      tailAlpha: 2.2
+    });
+    expect(explicitHybrid.getSplicePoint()).toBe(0.8);
+    expect(explicitHybrid.getTailAlpha()).toBe(2.2);
+    expect(explicitHybrid.getBodyModel()).toBeDefined();
+    expect(explicitHybrid.analyticalGini(201)).toBeGreaterThan(0.2);
+
+    expect(() => new HybridLorenzCurve(decileDataset, { splicePoint: 0 })).toThrow(/Splice point/);
+    expect(() => new HybridLorenzCurve(decileDataset, { splicePoint: 1 })).toThrow(/Splice point/);
+    expect(() => new HybridLorenzCurve(decileDataset, { tailAlpha: 0.9 })).toThrow(/Tail alpha/);
+
+    const threeKnotDataset: QuantileDataset = {
+      meanIncome: 10000,
+      points: [
+        { populationShare: 0, incomeShare: 0 },
+        { populationShare: 0.8, incomeShare: 1.0 },
+        { populationShare: 1.0, incomeShare: 1.0 }
+      ]
+    };
+    const flatTopHybrid = new HybridLorenzCurve(threeKnotDataset);
+    expect(flatTopHybrid.getSplicePoint()).toBe(0.8);
+    expect(flatTopHybrid.getTailAlpha()).toBe(2.0);
+
+    // Dataset where spline derivative at p* exceeds tail secant slope -> triggers clamped derivative
+    const steepMidDataset: QuantileDataset = {
+      meanIncome: 10000,
+      points: [
+        { populationShare: 0.0, incomeShare: 0.0 },
+        { populationShare: 0.4, incomeShare: 0.01 },
+        { populationShare: 0.8, incomeShare: 0.79 },
+        { populationShare: 1.0, incomeShare: 1.0 }
+      ]
+    };
+    const clampedHybrid = new HybridLorenzCurve(steepMidDataset, { splicePoint: 0.8 });
+    expect(clampedHybrid.getTailAlpha()).toBeGreaterThan(1.05);
+  });
 });

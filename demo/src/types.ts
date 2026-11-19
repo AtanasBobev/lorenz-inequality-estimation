@@ -1,10 +1,20 @@
-import { LorenzModel, QuantileDataset, GastwirthCertificate } from "../../src/index.js";
+import { LorenzModel, GastwirthCertificate } from "../../src/index.js";
 import { ValidationReport, ParameterValidation } from "./validation.js";
 
 export type ModelType = "hybrid" | "pchip" | "cubicspline";
 
+export interface MutableQuantilePoint {
+  populationShare: number;
+  incomeShare: number;
+}
+
+export interface MutableQuantileDataset {
+  meanIncome: number;
+  points: MutableQuantilePoint[];
+}
+
 export interface AppState {
-  dataset: QuantileDataset;
+  dataset: MutableQuantileDataset;
   currency: string;
   modelType: ModelType;
   splicingThreshold: number;

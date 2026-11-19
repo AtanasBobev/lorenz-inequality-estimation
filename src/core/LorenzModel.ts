@@ -27,10 +27,10 @@ export abstract class LorenzModel {
   }
 
   public isMonotonic(sampleCount: number = 200, tolerance: number = 1e-8): boolean {
-    const step = 1 / sampleCount;
+    const stepSize = 1 / sampleCount;
     for (let i = 0; i <= sampleCount; i++) {
-      const p = i * step;
-      if (this.derivative(p) < -tolerance) {
+      const percentile = i * stepSize;
+      if (this.derivative(percentile) < -tolerance) {
         return false;
       }
     }
@@ -38,10 +38,10 @@ export abstract class LorenzModel {
   }
 
   public isConvex(sampleCount: number = 200, tolerance: number = 1e-8): boolean {
-    const step = 1 / sampleCount;
+    const stepSize = 1 / sampleCount;
     for (let i = 0; i <= sampleCount; i++) {
-      const p = i * step;
-      if (this.secondDerivative(p) < -tolerance) {
+      const percentile = i * stepSize;
+      if (this.secondDerivative(percentile) < -tolerance) {
         return false;
       }
     }
@@ -50,11 +50,11 @@ export abstract class LorenzModel {
 
   public findConvexityViolations(sampleCount: number = 200, tolerance: number = 1e-8): number[] {
     const violations: number[] = [];
-    const step = 1 / sampleCount;
+    const stepSize = 1 / sampleCount;
     for (let i = 0; i <= sampleCount; i++) {
-      const p = i * step;
-      if (this.secondDerivative(p) < -tolerance) {
-        violations.push(p);
+      const percentile = i * stepSize;
+      if (this.secondDerivative(percentile) < -tolerance) {
+        violations.push(percentile);
       }
     }
     return violations;
@@ -66,36 +66,39 @@ export abstract class LorenzModel {
     return p;
   }
 
+  // Binary search for the knot bracket [p_i, p_{i+1}) containing p
   protected findKnotInterval(p: number): number {
-    const n = this.points.length;
+    const knotCount = this.points.length;
     if (p <= this.points[0].populationShare) {
       return 0;
     }
-    if (p >= this.points[n - 1].populationShare) {
-      return n - 2;
+    if (p >= this.points[knotCount - 1].populationShare) {
+      return knotCount - 2;
     }
 
-    let low = 0;
-    let high = n - 1;
+    let lowerIdx = 0;
+    let upperIdx = knotCount - 2;
 
-    while (low <= high) {
-      const mid = Math.floor((low + high) / 2);
-      if (p < this.points[mid].populationShare) {
-        high = mid - 1;
-      } else if (p >= this.points[mid + 1].populationShare) {
-        low = mid + 1;
+    while (lowerIdx < upperIdx) {
+      const midIdx = Math.floor((lowerIdx + upperIdx) / 2);
+      if (p < this.points[midIdx].populationShare) {
+        upperIdx = midIdx - 1;
+      } else if (p >= this.points[midIdx + 1].populationShare) {
+        lowerIdx = midIdx + 1;
       } else {
-        return mid;
+        return midIdx;
       }
     }
 
-    return Math.max(0, Math.min(n - 2, low));
+    return lowerIdx;
   }
 
   public getDataset(): QuantileDataset {
     return this.dataset;
   }
 
+  // Ensure knots are anchored at (0,0) and (1,1) with strictly increasing p and non-decreasing L
+  // TODO: Allow negative L(p) coordinates in the lower tail so we can fit net wealth datasets with household debt
   private validateDataset(dataset: QuantileDataset): void {
     if (!dataset.points || dataset.points.length < 2) {
       throw new Error("Quantile dataset must contain at least 2 points.");
@@ -104,32 +107,35 @@ export abstract class LorenzModel {
       throw new Error(`Mean income must be positive, received ${dataset.meanIncome}.`);
     }
 
-    const first = dataset.points[0];
-    const last = dataset.points[dataset.points.length - 1];
+    const firstKnot = dataset.points[0];
+    const lastKnot = dataset.points[dataset.points.length - 1];
 
-    if (Math.abs(first.populationShare) > 1e-9 || Math.abs(first.incomeShare) > 1e-9) {
+    if (Math.abs(firstKnot.populationShare) > 1e-9 || Math.abs(firstKnot.incomeShare) > 1e-9) {
       throw new Error(
-        `First knot must start at (0, 0), received (${first.populationShare}, ${first.incomeShare}).`
+        `First knot must start at (0, 0), received (${firstKnot.populationShare}, ${firstKnot.incomeShare}).`
       );
     }
-    if (Math.abs(last.populationShare - 1) > 1e-9 || Math.abs(last.incomeShare - 1) > 1e-9) {
+    if (
+      Math.abs(lastKnot.populationShare - 1) > 1e-9 ||
+      Math.abs(lastKnot.incomeShare - 1) > 1e-9
+    ) {
       throw new Error(
-        `Last knot must end at (1, 1), received (${last.populationShare}, ${last.incomeShare}).`
+        `Last knot must end at (1, 1), received (${lastKnot.populationShare}, ${lastKnot.incomeShare}).`
       );
     }
 
     for (let i = 1; i < dataset.points.length; i++) {
-      const prev = dataset.points[i - 1];
-      const curr = dataset.points[i];
+      const prevKnot = dataset.points[i - 1];
+      const currKnot = dataset.points[i];
 
-      if (curr.populationShare <= prev.populationShare) {
+      if (currKnot.populationShare <= prevKnot.populationShare) {
         throw new Error(
-          `Population shares must be strictly increasing: knot ${i} (${curr.populationShare}) <= knot ${i - 1} (${prev.populationShare}).`
+          `Population shares must be strictly increasing: knot ${i} (${currKnot.populationShare}) <= knot ${i - 1} (${prevKnot.populationShare}).`
         );
       }
-      if (curr.incomeShare < prev.incomeShare) {
+      if (currKnot.incomeShare < prevKnot.incomeShare) {
         throw new Error(
-          `Income shares must be non-decreasing: knot ${i} (${curr.incomeShare}) < knot ${i - 1} (${prev.incomeShare}).`
+          `Income shares must be non-decreasing: knot ${i} (${currKnot.incomeShare}) < knot ${i - 1} (${prevKnot.incomeShare}).`
         );
       }
     }

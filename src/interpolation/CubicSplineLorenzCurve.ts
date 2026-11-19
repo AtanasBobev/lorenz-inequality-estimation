@@ -10,6 +10,8 @@ export interface SplineOptions {
   readonly clampEndSlope?: number;
 }
 
+// Classical C^2 cubic spline solved via the O(k) Thomas tridiagonal algorithm
+// Note: Can oscillate (Runge's phenomenon) on steeply skewed deciles; use PchipLorenzCurve for shape preservation
 export class CubicSplineLorenzCurve extends LorenzModel {
   private readonly aCoeffs: number[];
   private readonly bCoeffs: number[];
@@ -22,127 +24,133 @@ export class CubicSplineLorenzCurve extends LorenzModel {
     super(dataset);
     this.boundaryType = options.boundaryType ?? "natural";
 
-    const n = this.points.length;
-    const h = new Float64Array(n - 1);
-    const delta = new Float64Array(n - 1);
+    const knotCount = this.points.length;
+    const intervalWidths = new Float64Array(knotCount - 1);
+    const secantSlopes = new Float64Array(knotCount - 1);
 
-    for (let i = 0; i < n - 1; i++) {
-      h[i] = this.points[i + 1].populationShare - this.points[i].populationShare;
-      delta[i] = (this.points[i + 1].incomeShare - this.points[i].incomeShare) / h[i];
+    for (let i = 0; i < knotCount - 1; i++) {
+      intervalWidths[i] = this.points[i + 1].populationShare - this.points[i].populationShare;
+      secantSlopes[i] =
+        (this.points[i + 1].incomeShare - this.points[i].incomeShare) / intervalWidths[i];
     }
 
     const solver = new TridiagonalSolver();
-    const M = new Float64Array(n);
+    const curvatures = new Float64Array(knotCount);
 
     if (this.boundaryType === "natural") {
-      M[0] = 0;
-      M[n - 1] = 0;
+      curvatures[0] = 0;
+      curvatures[knotCount - 1] = 0;
 
-      if (n > 2) {
-        const numInterior = n - 2;
-        const lower = new Float64Array(numInterior - 1);
-        const diag = new Float64Array(numInterior);
-        const upper = new Float64Array(numInterior - 1);
-        const rhs = new Float64Array(numInterior);
+      if (knotCount > 2) {
+        const interiorCount = knotCount - 2;
+        const subDiagonal = new Float64Array(interiorCount - 1);
+        const mainDiagonal = new Float64Array(interiorCount);
+        const superDiagonal = new Float64Array(interiorCount - 1);
+        const rhsVector = new Float64Array(interiorCount);
 
-        for (let i = 0; i < numInterior; i++) {
+        for (let i = 0; i < interiorCount; i++) {
           const knotIdx = i + 1;
-          diag[i] = 2 * (h[knotIdx - 1] + h[knotIdx]);
-          rhs[i] = 6 * (delta[knotIdx] - delta[knotIdx - 1]);
+          mainDiagonal[i] = 2 * (intervalWidths[knotIdx - 1] + intervalWidths[knotIdx]);
+          rhsVector[i] = 6 * (secantSlopes[knotIdx] - secantSlopes[knotIdx - 1]);
 
           if (i > 0) {
-            lower[i - 1] = h[knotIdx - 1];
+            subDiagonal[i - 1] = intervalWidths[knotIdx - 1];
           }
-          if (i < numInterior - 1) {
-            upper[i] = h[knotIdx];
+          if (i < interiorCount - 1) {
+            superDiagonal[i] = intervalWidths[knotIdx];
           }
         }
 
-        const interiorM = solver.solveVectors(
-          Array.from(lower),
-          Array.from(diag),
-          Array.from(upper),
-          Array.from(rhs)
+        const interiorCurvatures = solver.solveVectors(
+          Array.from(subDiagonal),
+          Array.from(mainDiagonal),
+          Array.from(superDiagonal),
+          Array.from(rhsVector)
         );
 
-        for (let i = 0; i < numInterior; i++) {
-          M[i + 1] = interiorM[i];
+        for (let i = 0; i < interiorCount; i++) {
+          curvatures[i + 1] = interiorCurvatures[i];
         }
       }
     } else {
-      const fPrime0 = options.clampStartSlope ?? 0;
-      const fPrimeN = options.clampEndSlope ?? delta[n - 2];
+      const startSlope = options.clampStartSlope ?? 0;
+      const endSlope = options.clampEndSlope ?? secantSlopes[knotCount - 2];
 
-      const lower = new Float64Array(n - 1);
-      const diag = new Float64Array(n);
-      const upper = new Float64Array(n - 1);
-      const rhs = new Float64Array(n);
+      const subDiagonal = new Float64Array(knotCount - 1);
+      const mainDiagonal = new Float64Array(knotCount);
+      const superDiagonal = new Float64Array(knotCount - 1);
+      const rhsVector = new Float64Array(knotCount);
 
-      diag[0] = 2 * h[0];
-      upper[0] = h[0];
-      rhs[0] = 6 * (delta[0] - fPrime0);
+      mainDiagonal[0] = 2 * intervalWidths[0];
+      superDiagonal[0] = intervalWidths[0];
+      rhsVector[0] = 6 * (secantSlopes[0] - startSlope);
 
-      for (let i = 1; i < n - 1; i++) {
-        lower[i - 1] = h[i - 1];
-        diag[i] = 2 * (h[i - 1] + h[i]);
-        upper[i] = h[i];
-        rhs[i] = 6 * (delta[i] - delta[i - 1]);
+      for (let i = 1; i < knotCount - 1; i++) {
+        subDiagonal[i - 1] = intervalWidths[i - 1];
+        mainDiagonal[i] = 2 * (intervalWidths[i - 1] + intervalWidths[i]);
+        superDiagonal[i] = intervalWidths[i];
+        rhsVector[i] = 6 * (secantSlopes[i] - secantSlopes[i - 1]);
       }
 
-      lower[n - 2] = h[n - 2];
-      diag[n - 1] = 2 * h[n - 2];
-      rhs[n - 1] = 6 * (fPrimeN - delta[n - 2]);
+      subDiagonal[knotCount - 2] = intervalWidths[knotCount - 2];
+      mainDiagonal[knotCount - 1] = 2 * intervalWidths[knotCount - 2];
+      rhsVector[knotCount - 1] = 6 * (endSlope - secantSlopes[knotCount - 2]);
 
-      const solvedM = solver.solveVectors(
-        Array.from(lower),
-        Array.from(diag),
-        Array.from(upper),
-        Array.from(rhs)
+      const solvedCurvatures = solver.solveVectors(
+        Array.from(subDiagonal),
+        Array.from(mainDiagonal),
+        Array.from(superDiagonal),
+        Array.from(rhsVector)
       );
 
-      for (let i = 0; i < n; i++) {
-        M[i] = solvedM[i];
+      for (let i = 0; i < knotCount; i++) {
+        curvatures[i] = solvedCurvatures[i];
       }
     }
 
-    this.secondDerivatives = Array.from(M);
-    this.aCoeffs = new Array(n - 1);
-    this.bCoeffs = new Array(n - 1);
-    this.cCoeffs = new Array(n - 1);
-    this.dCoeffs = new Array(n - 1);
+    this.secondDerivatives = Array.from(curvatures);
+    this.aCoeffs = new Array(knotCount - 1);
+    this.bCoeffs = new Array(knotCount - 1);
+    this.cCoeffs = new Array(knotCount - 1);
+    this.dCoeffs = new Array(knotCount - 1);
 
-    for (let i = 0; i < n - 1; i++) {
+    for (let i = 0; i < knotCount - 1; i++) {
       this.aCoeffs[i] = this.points[i].incomeShare;
-      this.cCoeffs[i] = M[i] / 2;
-      this.dCoeffs[i] = (M[i + 1] - M[i]) / (6 * h[i]);
-      this.bCoeffs[i] = delta[i] - ((2 * M[i] + M[i + 1]) * h[i]) / 6;
+      this.cCoeffs[i] = curvatures[i] / 2;
+      this.dCoeffs[i] = (curvatures[i + 1] - curvatures[i]) / (6 * intervalWidths[i]);
+      this.bCoeffs[i] =
+        secantSlopes[i] - ((2 * curvatures[i] + curvatures[i + 1]) * intervalWidths[i]) / 6;
     }
   }
 
   public evaluate(p: number): number {
     const clampedP = this.clampPopulation(p);
-    const i = this.findKnotInterval(clampedP);
-    const dx = clampedP - this.points[i].populationShare;
+    const bracketIdx = this.findKnotInterval(clampedP);
+    const localOffset = clampedP - this.points[bracketIdx].populationShare;
     return (
-      this.aCoeffs[i] +
-      this.bCoeffs[i] * dx +
-      this.cCoeffs[i] * dx * dx +
-      this.dCoeffs[i] * dx * dx * dx
+      this.aCoeffs[bracketIdx] +
+      this.bCoeffs[bracketIdx] * localOffset +
+      this.cCoeffs[bracketIdx] * localOffset * localOffset +
+      this.dCoeffs[bracketIdx] * localOffset * localOffset * localOffset
     );
   }
 
   public derivative(p: number): number {
     const clampedP = this.clampPopulation(p);
-    const i = this.findKnotInterval(clampedP);
-    const dx = clampedP - this.points[i].populationShare;
-    return this.bCoeffs[i] + 2 * this.cCoeffs[i] * dx + 3 * this.dCoeffs[i] * dx * dx;
+    const bracketIdx = this.findKnotInterval(clampedP);
+    const localOffset = clampedP - this.points[bracketIdx].populationShare;
+    return (
+      this.bCoeffs[bracketIdx] +
+      2 * this.cCoeffs[bracketIdx] * localOffset +
+      3 * this.dCoeffs[bracketIdx] * localOffset * localOffset
+    );
   }
 
   public secondDerivative(p: number): number {
     const clampedP = this.clampPopulation(p);
-    const i = this.findKnotInterval(clampedP);
-    const dx = clampedP - this.points[i].populationShare;
-    return 2 * this.cCoeffs[i] + 6 * this.dCoeffs[i] * dx;
+    const bracketIdx = this.findKnotInterval(clampedP);
+    const localOffset = clampedP - this.points[bracketIdx].populationShare;
+    return 2 * this.cCoeffs[bracketIdx] + 6 * this.dCoeffs[bracketIdx] * localOffset;
   }
 
   public getBoundaryType(): SplineBoundaryType {

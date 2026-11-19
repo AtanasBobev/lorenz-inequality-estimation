@@ -5,6 +5,6 @@ import { GiniResult } from "./types.js";
 export interface NumericalIntegrator {
   readonly name: string;
 
-  // Computes the definite integral of L(p) from a to b and returns the Gini coefficient
+  // Compute the definite integral of L(p) from a to b and returns the Gini coefficient
   integrate(model: LorenzModel, a: number, b: number, stepCount: number): GiniResult;
 }

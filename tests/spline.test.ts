@@ -97,5 +97,41 @@ describe("CubicSplineLorenzCurve and PchipLorenzCurve", () => {
       const top20Share = pchip.topShare(0.2);
       expect(top20Share).toBeCloseTo(1 - 0.48, 1);
     });
+
+    it("handles 2-knot splines, default boundary options, flat segments, and non-convex secant repairs", () => {
+      const twoKnotDataset: QuantileDataset = {
+        meanIncome: 10000,
+        points: [
+          { populationShare: 0, incomeShare: 0 },
+          { populationShare: 1, incomeShare: 1 }
+        ]
+      };
+      const twoKnotCubic = new CubicSplineLorenzCurve(twoKnotDataset);
+      expect(twoKnotCubic.getBoundaryType()).toBe("natural");
+      expect(twoKnotCubic.secondDerivative(0.5)).toBeCloseTo(0, 9);
+
+      const defaultClamped = new CubicSplineLorenzCurve(sampleCensusDataset, {
+        boundaryType: "clamped"
+      });
+      expect(defaultClamped.getBoundaryType()).toBe("clamped");
+
+      // Dataset with a flat segment (delta = 0) and a non-convex kink where secant decreases
+      const kinkDataset: QuantileDataset = {
+        meanIncome: 10000,
+        points: [
+          { populationShare: 0.0, incomeShare: 0.0 },
+          { populationShare: 0.2, incomeShare: 0.0 },
+          { populationShare: 0.5, incomeShare: 0.35 },
+          { populationShare: 0.8, incomeShare: 0.4 },
+          { populationShare: 1.0, incomeShare: 1.0 }
+        ]
+      };
+      const repairedPchip = new PchipLorenzCurve(kinkDataset);
+      expect(repairedPchip.wasRepaired()).toBe(true);
+      expect(repairedPchip.getKnotSlopes().length).toBe(5);
+
+      const unrepairedPchip = new PchipLorenzCurve(kinkDataset, { enforceConvexity: false });
+      expect(unrepairedPchip.wasRepaired()).toBe(false);
+    });
   });
 });

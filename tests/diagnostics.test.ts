@@ -11,7 +11,7 @@ import {
   EUROSTAT_EU27_2022
 } from "../src/index.js";
 
-describe("Econometric Diagnostics & Sensitivity Analysis (Week 7)", () => {
+describe("Econometric Diagnostics & Sensitivity Analysis", () => {
   const integrator = new SimpsonsIntegrator();
   const solver = new BisectionSolver();
 
@@ -136,6 +136,24 @@ describe("Econometric Diagnostics & Sensitivity Analysis (Week 7)", () => {
       // Hybrid tail model should be substantially closer to administrative WID microdata benchmark
       expect(comp.hybridTop1).toBeGreaterThan(comp.splineTop1);
       expect(comp.top1ErrorHybrid).toBeLessThan(comp.top1ErrorSpline);
+
+      // Cubic spline sensitivity sweep and out-of-bounds knot skipping
+      const cubicSweep = SensitivityAnalyzer.sweepParetoSplice(
+        BULGARIAN_NSI_2022.dataset,
+        0.0,
+        0.8,
+        0.4,
+        "cubicspline"
+      );
+      expect(cubicSweep.length).toBe(2);
+
+      // Default argument call on sweepParetoSplice
+      const defaultSweep = SensitivityAnalyzer.sweepParetoSplice(BULGARIAN_NSI_2022.dataset);
+      expect(defaultSweep.length).toBeGreaterThan(4);
+
+      expect(() =>
+        SensitivityAnalyzer.compareWithWID("invalid_key" as "bulgaria", pchip, hybrid)
+      ).toThrow(/Unknown benchmark dataset key/);
     });
   });
 });

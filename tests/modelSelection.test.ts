@@ -138,4 +138,66 @@ describe("ModelSelectionEvaluator - Information Criteria & Model Selection", () 
       expect(ranked[0].akaikeWeight + ranked[1].akaikeWeight).toBeCloseTo(1.0, 5);
     }
   });
+
+  it("handles edge cases in information criteria and knot optimization", () => {
+    expect(() => ModelSelectionEvaluator.computeLogLikelihood(0, 0.1)).toThrow(/strictly positive/);
+
+    const pchip = new PchipLorenzCurve(BULGARIAN_NSI_2022.dataset);
+    expect(() =>
+      ModelSelectionEvaluator.evaluateModel({ meanIncome: 1000, points: [] }, pchip, 2)
+    ).toThrow(/no quantile points/);
+
+    // Constant observed incomeShare (totalSumSquares === 0)
+    const flatEval = ModelSelectionEvaluator.evaluateModel(
+      {
+        meanIncome: 1000,
+        points: [
+          { populationShare: 0, incomeShare: 0 },
+          { populationShare: 0.5, incomeShare: 0 }
+        ]
+      },
+      pchip,
+      1
+    );
+    expect(flatEval.rSquared).toBe(1.0);
+
+    // Empty candidate list
+    expect(ModelSelectionEvaluator.compareModels(BULGARIAN_NSI_2022.dataset, [])).toEqual([]);
+
+    // Candidate with too many parameters (AICc = Infinity -> akaikeWeight = 0, evidenceRatio = Infinity)
+    const overparamComparison = ModelSelectionEvaluator.compareModels(BULGARIAN_NSI_2022.dataset, [
+      { name: "Overparameterized", model: pchip, parameterCount: 20 },
+      { name: "Parsimonious", model: pchip, parameterCount: 2 }
+    ]);
+    expect(overparamComparison[0].modelName).toBe("Parsimonious");
+    expect(overparamComparison[1].evidenceRatio).toBe(Number.POSITIVE_INFINITY);
+
+    // Cubic spline body and candidate knots that trigger low-alpha penalty (< 1.1) and invalid knot skipping
+    const steepTailDataset: QuantileDataset = {
+      meanIncome: 20000,
+      points: [
+        { populationShare: 0.0, incomeShare: 0.0 },
+        { populationShare: 0.5, incomeShare: 0.05 },
+        { populationShare: 0.8, incomeShare: 0.1 },
+        { populationShare: 0.95, incomeShare: 0.85 },
+        { populationShare: 1.0, incomeShare: 1.0 }
+      ]
+    };
+    const steepOpt = ModelSelectionEvaluator.findOptimalKnot(steepTailDataset, {
+      candidateKnots: [0.0, 0.5, 0.8, 0.95],
+      bodyModelType: "cubicspline"
+    });
+    expect(steepOpt.records.length).toBe(3);
+
+    // Default options call on findOptimalKnot
+    const defaultOpt = ModelSelectionEvaluator.findOptimalKnot(BULGARIAN_NSI_2022.dataset);
+    expect(defaultOpt.optimalKnot).toBeGreaterThan(0.5);
+
+    // Candidate set with no valid knots in (0, 1) throws error
+    expect(() =>
+      ModelSelectionEvaluator.findOptimalKnot(BULGARIAN_NSI_2022.dataset, {
+        candidateKnots: [0.0, 1.0]
+      })
+    ).toThrow(/No admissible splicing knot found/);
+  });
 });

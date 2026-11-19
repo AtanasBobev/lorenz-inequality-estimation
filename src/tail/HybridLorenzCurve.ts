@@ -8,6 +8,9 @@ export interface HybridOptions {
   readonly tailAlpha?: number;
 }
 
+// Splice a non-parametric spline body on [0, p*] onto an analytical Pareto power-law tail on (p*, 1]
+// Calibrate tail exponent alpha in closed form so both level L(p*) and marginal income L'(p*) match at p*
+// TODO: Support Generalized Pareto Curves (GPC) where tail exponent alpha(p) varies across the top decile
 export class HybridLorenzCurve extends LorenzModel {
   private readonly bodyModel: LorenzModel;
   private readonly splicePoint: number;
@@ -54,9 +57,9 @@ export class HybridLorenzCurve extends LorenzModel {
       return this.bodyModel.evaluate(clampedP);
     }
 
-    const t = (1 - clampedP) / (1 - this.splicePoint);
-    const exponent = 1 - 1 / this.tailAlpha;
-    return 1 - (1 - this.lSplice) * Math.pow(t, exponent);
+    const tailRatio = (1 - clampedP) / (1 - this.splicePoint);
+    const tailExponent = 1 - 1 / this.tailAlpha;
+    return 1 - (1 - this.lSplice) * Math.pow(tailRatio, tailExponent);
   }
 
   public derivative(p: number): number {
@@ -69,15 +72,10 @@ export class HybridLorenzCurve extends LorenzModel {
       return this.bodyModel.derivative(clampedP);
     }
 
-    if (clampedP >= 1 - 1e-12) {
-      const t = 1e-12 / (1 - this.splicePoint);
-      const factor = ((1 - this.lSplice) / (1 - this.splicePoint)) * (1 - 1 / this.tailAlpha);
-      return factor * Math.pow(t, -1 / this.tailAlpha);
-    }
-
-    const t = (1 - clampedP) / (1 - this.splicePoint);
-    const factor = ((1 - this.lSplice) / (1 - this.splicePoint)) * (1 - 1 / this.tailAlpha);
-    return factor * Math.pow(t, -1 / this.tailAlpha);
+    const safeRemainingPop = Math.max(1e-12, 1 - clampedP);
+    const tailRatio = safeRemainingPop / (1 - this.splicePoint);
+    const scaleFactor = ((1 - this.lSplice) / (1 - this.splicePoint)) * (1 - 1 / this.tailAlpha);
+    return scaleFactor * Math.pow(tailRatio, -1 / this.tailAlpha);
   }
 
   public secondDerivative(p: number): number {
@@ -86,17 +84,14 @@ export class HybridLorenzCurve extends LorenzModel {
       return this.bodyModel.secondDerivative(clampedP);
     }
 
-    const denom = Math.pow(1 - this.splicePoint, 2);
-    const factor =
-      ((1 - this.lSplice) / denom) * ((this.tailAlpha - 1) / (this.tailAlpha * this.tailAlpha));
+    const tailWidthSquared = Math.pow(1 - this.splicePoint, 2);
+    const scaleFactor =
+      ((1 - this.lSplice) / tailWidthSquared) *
+      ((this.tailAlpha - 1) / (this.tailAlpha * this.tailAlpha));
 
-    if (clampedP >= 1 - 1e-12) {
-      const t = 1e-12 / (1 - this.splicePoint);
-      return factor * Math.pow(t, -(this.tailAlpha + 1) / this.tailAlpha);
-    }
-
-    const t = (1 - clampedP) / (1 - this.splicePoint);
-    return factor * Math.pow(t, -(this.tailAlpha + 1) / this.tailAlpha);
+    const safeRemainingPop = Math.max(1e-12, 1 - clampedP);
+    const tailRatio = safeRemainingPop / (1 - this.splicePoint);
+    return scaleFactor * Math.pow(tailRatio, -(this.tailAlpha + 1) / this.tailAlpha);
   }
 
   public getSplicePoint(): number {
@@ -112,57 +107,58 @@ export class HybridLorenzCurve extends LorenzModel {
   }
 
   public analyticalTailArea(): number {
-    const remainingP = 1 - this.splicePoint;
-    const remainingL = 1 - this.lSplice;
-    const factor = (this.tailAlpha * remainingL) / (2 * this.tailAlpha - 1);
-    return remainingP * (1 - factor);
+    const remainingPop = 1 - this.splicePoint;
+    const remainingIncome = 1 - this.lSplice;
+    const paretoAreaFactor = (this.tailAlpha * remainingIncome) / (2 * this.tailAlpha - 1);
+    return remainingPop * (1 - paretoAreaFactor);
   }
 
   public analyticalTotalArea(bodySubintervals: number = 200): number {
-    const n = bodySubintervals % 2 === 0 ? bodySubintervals : bodySubintervals + 1;
-    const h = this.splicePoint / n;
+    const subintervalCount = bodySubintervals % 2 === 0 ? bodySubintervals : bodySubintervals + 1;
+    const stepWidth = this.splicePoint / subintervalCount;
 
     let bodySum = this.bodyModel.evaluate(0) + this.bodyModel.evaluate(this.splicePoint);
-    for (let i = 1; i < n; i++) {
-      const p = i * h;
-      bodySum += (i % 2 === 1 ? 4 : 2) * this.bodyModel.evaluate(p);
+    for (let i = 1; i < subintervalCount; i++) {
+      const percentile = i * stepWidth;
+      bodySum += (i % 2 === 1 ? 4 : 2) * this.bodyModel.evaluate(percentile);
     }
-    const bodyArea = (bodySum * h) / 3;
+    const bodyArea = (bodySum * stepWidth) / 3;
 
     return bodyArea + this.analyticalTailArea();
   }
 
   public analyticalGini(bodySubintervals: number = 200): number {
-    const area = this.analyticalTotalArea(bodySubintervals);
-    return 1 - 2 * area;
+    const totalArea = this.analyticalTotalArea(bodySubintervals);
+    return 1 - 2 * totalArea;
   }
 
   private selectDefaultSplicePoint(): number {
-    const n = this.points.length;
-    if (n >= 4) {
-      return this.points[n - 2].populationShare;
+    const knotCount = this.points.length;
+    if (knotCount >= 4) {
+      return this.points[knotCount - 2].populationShare;
     }
     return 0.8;
   }
 
+  // Solve (1 - L*) / (1 - p*) * (1 - 1/alpha) = L'(p*) for alpha, clamping if L'(p*) >= secant slope
   private computeAnalyticalAlpha(pStar: number, lStar: number, dStar: number): number {
-    const remainingP = 1 - pStar;
-    const remainingL = 1 - lStar;
+    const remainingPop = 1 - pStar;
+    const remainingIncome = 1 - lStar;
 
-    if (remainingP <= 0 || remainingL <= 0) {
+    if (remainingIncome <= 0) {
       return 2.0;
     }
 
-    const secantSlope = remainingL / remainingP;
-    const denominator = remainingL - remainingP * dStar;
+    const tailSecantSlope = remainingIncome / remainingPop;
+    const alphaDenominator = remainingIncome - remainingPop * dStar;
 
-    if (denominator <= 1e-7 || dStar >= secantSlope) {
-      const targetDerivative = 0.92 * secantSlope;
-      const safeDenominator = remainingL - remainingP * targetDerivative;
-      return Math.max(1.05, remainingL / safeDenominator);
+    if (alphaDenominator <= 1e-7 || dStar >= tailSecantSlope) {
+      const clampedDerivative = 0.92 * tailSecantSlope;
+      const safeDenominator = remainingIncome - remainingPop * clampedDerivative;
+      return Math.max(1.05, remainingIncome / safeDenominator);
     }
 
-    const alpha = remainingL / denominator;
-    return Math.max(1.05, alpha);
+    const calibratedAlpha = remainingIncome / alphaDenominator;
+    return Math.max(1.05, calibratedAlpha);
   }
 }

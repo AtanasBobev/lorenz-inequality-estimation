@@ -7,7 +7,12 @@ import {
   HybridLorenzCurve,
   SimpsonsIntegrator,
   BisectionSolver,
-  InequalityEngine
+  InequalityEngine,
+  inverseNormalCdf,
+  logGamma,
+  gamma,
+  clampTinyDenominator,
+  regularizedIncompleteBeta
 } from "../src/index.js";
 import { validateQuantilePoints } from "../demo/src/validation.js";
 
@@ -115,5 +120,41 @@ describe("Synthetic Distribution Ground Truth and Convergence", () => {
 
     expect(errHybrid).toBeLessThan(errPchip);
     expect(errPchip / errHybrid).toBeGreaterThan(2.0); // At least 2x better accuracy
+  });
+
+  it("validates specialFunctions edge cases and distribution parameter guards", () => {
+    expect(() => new LogNormalDistribution(0)).toThrow(/sigma must be positive/);
+    expect(() => new SinghMaddalaDistribution(0.5, 1.5)).toThrow(/Product a \* q/);
+    expect(() => new DagumDistribution(1.0, 0.7)).toThrow(/Parameter a must be strictly greater/);
+
+    const ln = new LogNormalDistribution(0.8);
+    const sm = new SinghMaddalaDistribution(2.8, 1.7);
+    const dg = new DagumDistribution(3.5, 0.7);
+
+    expect(ln.evaluateLorenz(0)).toBe(0);
+    expect(ln.evaluateLorenz(1)).toBe(1);
+    expect(sm.evaluateLorenz(0)).toBe(0);
+    expect(sm.evaluateLorenz(1)).toBe(1);
+    expect(dg.evaluateLorenz(0)).toBe(0);
+    expect(dg.evaluateLorenz(1)).toBe(1);
+
+    expect(() => ln.sampleQuantiles(1)).toThrow(/at least 2/);
+    expect(() => sm.sampleQuantiles(1)).toThrow(/at least 2/);
+    expect(() => dg.sampleQuantiles(1)).toThrow(/at least 2/);
+
+    expect(inverseNormalCdf(0)).toBe(-Infinity);
+    expect(inverseNormalCdf(1)).toBe(Infinity);
+    expect(inverseNormalCdf(0.01)).toBeLessThan(-2.0);
+    expect(inverseNormalCdf(0.99)).toBeGreaterThan(2.0);
+
+    expect(() => logGamma(0)).toThrow(/non-positive/);
+    expect(logGamma(0.25)).toBeGreaterThan(0);
+    expect(gamma(4)).toBeCloseTo(6.0, 8);
+
+    expect(clampTinyDenominator(0)).toBe(1e-30);
+    expect(clampTinyDenominator(0.5)).toBe(0.5);
+
+    expect(regularizedIncompleteBeta(2, 2, 0)).toBe(0);
+    expect(regularizedIncompleteBeta(2, 2, 1)).toBe(1);
   });
 });

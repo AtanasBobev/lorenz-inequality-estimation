@@ -1,6 +1,7 @@
 import { LorenzModel } from "../core/LorenzModel.js";
 import { QuantileDataset } from "../core/types.js";
 
+// Global Type-I Pareto Lorenz curve: L(p) = 1 - (1 - p)^(1 - 1/alpha) for alpha > 1
 export class ParetoLorenzCurve extends LorenzModel {
   private readonly alpha: number;
 
@@ -24,8 +25,8 @@ export class ParetoLorenzCurve extends LorenzModel {
     if (clampedP <= 0) return 0;
     if (clampedP >= 1) return 1;
 
-    const exponent = 1 - 1 / this.alpha;
-    return 1 - Math.pow(1 - clampedP, exponent);
+    const tailExponent = 1 - 1 / this.alpha;
+    return 1 - Math.pow(1 - clampedP, tailExponent);
   }
 
   public derivative(p: number): number {
@@ -33,23 +34,16 @@ export class ParetoLorenzCurve extends LorenzModel {
     if (clampedP <= 0) {
       return 1 - 1 / this.alpha;
     }
-    if (clampedP >= 1 - 1e-12) {
-      return (1 - 1 / this.alpha) * Math.pow(1e-12, -1 / this.alpha);
-    }
-
-    const factor = 1 - 1 / this.alpha;
-    return factor * Math.pow(1 - clampedP, -1 / this.alpha);
+    const safeRemainingPop = Math.max(1e-12, 1 - clampedP);
+    const scaleFactor = 1 - 1 / this.alpha;
+    return scaleFactor * Math.pow(safeRemainingPop, -1 / this.alpha);
   }
 
   public secondDerivative(p: number): number {
     const clampedP = this.clampPopulation(p);
-    if (clampedP >= 1 - 1e-12) {
-      const factor = (this.alpha - 1) / (this.alpha * this.alpha);
-      return factor * Math.pow(1e-12, -(this.alpha + 1) / this.alpha);
-    }
-
-    const factor = (this.alpha - 1) / (this.alpha * this.alpha);
-    return factor * Math.pow(1 - clampedP, -(this.alpha + 1) / this.alpha);
+    const safeRemainingPop = Math.max(1e-12, 1 - clampedP);
+    const scaleFactor = (this.alpha - 1) / (this.alpha * this.alpha);
+    return scaleFactor * Math.pow(safeRemainingPop, -(this.alpha + 1) / this.alpha);
   }
 
   public getAlpha(): number {
@@ -64,27 +58,28 @@ export class ParetoLorenzCurve extends LorenzModel {
     return (this.alpha - 1) / (2 * this.alpha - 1);
   }
 
+  // Estimates alpha from the upper interior knot via log(1 - L) / log(1 - p) = 1 - 1/alpha
   private estimateAlphaFromDataset(dataset: QuantileDataset): number {
-    const n = dataset.points.length;
-    const refIndex = Math.max(1, Math.min(n - 2, Math.floor(n * 0.8)));
-    const pt = dataset.points[refIndex];
+    const knotCount = dataset.points.length;
+    const refIndex = Math.max(1, Math.min(knotCount - 2, Math.floor(knotCount * 0.8)));
+    const referenceKnot = dataset.points[refIndex];
 
-    const p = pt.populationShare;
-    const l = pt.incomeShare;
+    const popShare = referenceKnot.populationShare;
+    const incShare = referenceKnot.incomeShare;
 
-    if (p <= 0 || p >= 1 || l <= 0 || l >= 1) {
+    if (incShare <= 0 || incShare >= 1) {
       return 2.0;
     }
 
-    const logP = Math.log(1 - p);
-    const logL = Math.log(1 - l);
-    const ratio = logL / logP;
+    const logRemainingPop = Math.log(1 - popShare);
+    const logRemainingInc = Math.log(1 - incShare);
+    const logRatio = logRemainingInc / logRemainingPop;
 
-    if (ratio <= 0 || ratio >= 1) {
+    if (logRatio <= 0 || logRatio >= 1) {
       return 2.0;
     }
 
-    const alphaEst = 1 / (1 - ratio);
-    return Math.max(1.05, alphaEst);
+    const alphaEstimate = 1 / (1 - logRatio);
+    return Math.max(1.05, alphaEstimate);
   }
 }

@@ -20,20 +20,20 @@
       return 1 - this.evaluate(1 - topFraction);
     }
     isMonotonic(sampleCount = 200, tolerance = 1e-8) {
-      const step = 1 / sampleCount;
+      const stepSize = 1 / sampleCount;
       for (let i = 0; i <= sampleCount; i++) {
-        const p = i * step;
-        if (this.derivative(p) < -tolerance) {
+        const percentile = i * stepSize;
+        if (this.derivative(percentile) < -tolerance) {
           return false;
         }
       }
       return true;
     }
     isConvex(sampleCount = 200, tolerance = 1e-8) {
-      const step = 1 / sampleCount;
+      const stepSize = 1 / sampleCount;
       for (let i = 0; i <= sampleCount; i++) {
-        const p = i * step;
-        if (this.secondDerivative(p) < -tolerance) {
+        const percentile = i * stepSize;
+        if (this.secondDerivative(percentile) < -tolerance) {
           return false;
         }
       }
@@ -41,11 +41,11 @@
     }
     findConvexityViolations(sampleCount = 200, tolerance = 1e-8) {
       const violations = [];
-      const step = 1 / sampleCount;
+      const stepSize = 1 / sampleCount;
       for (let i = 0; i <= sampleCount; i++) {
-        const p = i * step;
-        if (this.secondDerivative(p) < -tolerance) {
-          violations.push(p);
+        const percentile = i * stepSize;
+        if (this.secondDerivative(percentile) < -tolerance) {
+          violations.push(percentile);
         }
       }
       return violations;
@@ -55,31 +55,34 @@
       if (p > 1) return 1;
       return p;
     }
+    // Binary search for the knot bracket [p_i, p_{i+1}) containing p.
     findKnotInterval(p) {
-      const n = this.points.length;
+      const knotCount = this.points.length;
       if (p <= this.points[0].populationShare) {
         return 0;
       }
-      if (p >= this.points[n - 1].populationShare) {
-        return n - 2;
+      if (p >= this.points[knotCount - 1].populationShare) {
+        return knotCount - 2;
       }
-      let low = 0;
-      let high = n - 1;
-      while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        if (p < this.points[mid].populationShare) {
-          high = mid - 1;
-        } else if (p >= this.points[mid + 1].populationShare) {
-          low = mid + 1;
+      let lowerIdx = 0;
+      let upperIdx = knotCount - 2;
+      while (lowerIdx < upperIdx) {
+        const midIdx = Math.floor((lowerIdx + upperIdx) / 2);
+        if (p < this.points[midIdx].populationShare) {
+          upperIdx = midIdx - 1;
+        } else if (p >= this.points[midIdx + 1].populationShare) {
+          lowerIdx = midIdx + 1;
         } else {
-          return mid;
+          return midIdx;
         }
       }
-      return Math.max(0, Math.min(n - 2, low));
+      return lowerIdx;
     }
     getDataset() {
       return this.dataset;
     }
+    // Ensures knots are anchored at (0,0) and (1,1) with strictly increasing p and non-decreasing L.
+    // TODO: Allow negative L(p) coordinates in the lower tail so we can fit net wealth datasets with household debt.
     validateDataset(dataset) {
       if (!dataset.points || dataset.points.length < 2) {
         throw new Error("Quantile dataset must contain at least 2 points.");
@@ -87,29 +90,29 @@
       if (dataset.meanIncome <= 0) {
         throw new Error(`Mean income must be positive, received ${dataset.meanIncome}.`);
       }
-      const first = dataset.points[0];
-      const last = dataset.points[dataset.points.length - 1];
-      if (Math.abs(first.populationShare) > 1e-9 || Math.abs(first.incomeShare) > 1e-9) {
+      const firstKnot = dataset.points[0];
+      const lastKnot = dataset.points[dataset.points.length - 1];
+      if (Math.abs(firstKnot.populationShare) > 1e-9 || Math.abs(firstKnot.incomeShare) > 1e-9) {
         throw new Error(
-          `First knot must start at (0, 0), received (${first.populationShare}, ${first.incomeShare}).`
+          `First knot must start at (0, 0), received (${firstKnot.populationShare}, ${firstKnot.incomeShare}).`
         );
       }
-      if (Math.abs(last.populationShare - 1) > 1e-9 || Math.abs(last.incomeShare - 1) > 1e-9) {
+      if (Math.abs(lastKnot.populationShare - 1) > 1e-9 || Math.abs(lastKnot.incomeShare - 1) > 1e-9) {
         throw new Error(
-          `Last knot must end at (1, 1), received (${last.populationShare}, ${last.incomeShare}).`
+          `Last knot must end at (1, 1), received (${lastKnot.populationShare}, ${lastKnot.incomeShare}).`
         );
       }
       for (let i = 1; i < dataset.points.length; i++) {
-        const prev = dataset.points[i - 1];
-        const curr = dataset.points[i];
-        if (curr.populationShare <= prev.populationShare) {
+        const prevKnot = dataset.points[i - 1];
+        const currKnot = dataset.points[i];
+        if (currKnot.populationShare <= prevKnot.populationShare) {
           throw new Error(
-            `Population shares must be strictly increasing: knot ${i} (${curr.populationShare}) <= knot ${i - 1} (${prev.populationShare}).`
+            `Population shares must be strictly increasing: knot ${i} (${currKnot.populationShare}) <= knot ${i - 1} (${prevKnot.populationShare}).`
           );
         }
-        if (curr.incomeShare < prev.incomeShare) {
+        if (currKnot.incomeShare < prevKnot.incomeShare) {
           throw new Error(
-            `Income shares must be non-decreasing: knot ${i} (${curr.incomeShare}) < knot ${i - 1} (${prev.incomeShare}).`
+            `Income shares must be non-decreasing: knot ${i} (${currKnot.incomeShare}) < knot ${i - 1} (${prevKnot.incomeShare}).`
           );
         }
       }
@@ -157,122 +160,130 @@
     getIncomeAtPercentile(p) {
       return this.model.quantileIncome(p);
     }
-    // Solves for poverty headcount ratio H where marginal income equals povertyLine.
+    // Solves mu * L'(H) = povertyLine using safeguarded Newton-Raphson with bisection fallback.
+    // TODO: Support Foster-Greer-Thorbecke (FGT) poverty gap (alpha=1) and severity (alpha=2) integrals.
     getPovertyHeadcount(povertyLine, meanIncome, tolerance = 1e-7, maxIterations = 60) {
       if (povertyLine <= 0) {
         return 0;
       }
-      const mu = meanIncome ?? this.model.getDataset().meanIncome;
-      if (mu <= 0) {
-        throw new Error(`Mean income must be strictly positive, received ${mu}.`);
+      const effectiveMean = meanIncome ?? this.model.getDataset().meanIncome;
+      if (effectiveMean <= 0) {
+        throw new Error(`Mean income must be strictly positive, received ${effectiveMean}.`);
       }
-      const y0 = mu * this.model.derivative(0);
-      if (povertyLine <= y0) {
+      const minMarginalIncome = effectiveMean * this.model.derivative(0);
+      if (povertyLine <= minMarginalIncome) {
         return 0;
       }
-      const y1 = mu * this.model.derivative(1);
-      if (povertyLine >= y1) {
+      const maxMarginalIncome = effectiveMean * this.model.derivative(1);
+      if (povertyLine >= maxMarginalIncome) {
         return 1;
       }
-      let a = 0;
-      let b = 1;
-      let p = Math.max(1e-4, Math.min(1 - 1e-4, (povertyLine - y0) / Math.max(1e-6, y1 - y0)));
-      for (let iter = 0; iter < maxIterations; iter++) {
-        const currentIncome = mu * this.model.derivative(p);
+      let leftBound = 0;
+      let rightBound = 1;
+      let candidatePercentile = Math.max(
+        1e-4,
+        Math.min(
+          1 - 1e-4,
+          (povertyLine - minMarginalIncome) / Math.max(1e-6, maxMarginalIncome - minMarginalIncome)
+        )
+      );
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        const currentIncome = effectiveMean * this.model.derivative(candidatePercentile);
         const residual = currentIncome - povertyLine;
         if (Math.abs(residual) <= tolerance * Math.max(1, povertyLine)) {
-          return p;
+          return candidatePercentile;
         }
         if (residual < 0) {
-          a = p;
+          leftBound = candidatePercentile;
         } else {
-          b = p;
+          rightBound = candidatePercentile;
         }
-        const intervalWidth = b - a;
-        if (intervalWidth <= tolerance) {
-          return 0.5 * (a + b);
+        const bracketWidth = rightBound - leftBound;
+        if (bracketWidth <= tolerance) {
+          return 0.5 * (leftBound + rightBound);
         }
-        const dResidual = mu * this.model.secondDerivative(p);
+        const residualSlope = effectiveMean * this.model.secondDerivative(candidatePercentile);
         let stepAccepted = false;
-        if (dResidual > 1e-12) {
-          const pNewton = p - residual / dResidual;
-          if (pNewton > a + 1e-12 && pNewton < b - 1e-12) {
-            p = pNewton;
+        if (residualSlope > 1e-12) {
+          const newtonStep = candidatePercentile - residual / residualSlope;
+          if (newtonStep > leftBound + 1e-12 && newtonStep < rightBound - 1e-12) {
+            candidatePercentile = newtonStep;
             stepAccepted = true;
           }
         }
         if (!stepAccepted) {
-          p = 0.5 * (a + b);
+          candidatePercentile = 0.5 * (leftBound + rightBound);
         }
       }
-      return 0.5 * (a + b);
+      return 0.5 * (leftBound + rightBound);
     }
-    // Certifies that estimated Gini lies within Gastwirth bounds [G_L, G_U].
+    // Checks that the estimated Gini falls inside Gastwirth's (1972) distribution-free bounds [G_L, G_U].
+    // TODO: Add non-parametric bootstrap resampling to estimate confidence intervals alongside [G_L, G_U].
     certifyGastwirthBounds(estimatedGini) {
       const dataset = this.model.getDataset();
       const points = dataset.points;
-      const k = points.length - 1;
+      const bracketCount = points.length - 1;
       let chordArea = 0;
-      const secants = [];
-      for (let i = 1; i <= k; i++) {
-        const hi = points[i].populationShare - points[i - 1].populationShare;
-        const deltaL = points[i].incomeShare - points[i - 1].incomeShare;
-        secants.push(deltaL / hi);
-        chordArea += 0.5 * hi * (points[i].incomeShare + points[i - 1].incomeShare);
+      const secantSlopes = [];
+      for (let i = 1; i <= bracketCount; i++) {
+        const stepWidth = points[i].populationShare - points[i - 1].populationShare;
+        const incomeIncrement = points[i].incomeShare - points[i - 1].incomeShare;
+        secantSlopes.push(incomeIncrement / stepWidth);
+        chordArea += 0.5 * stepWidth * (points[i].incomeShare + points[i - 1].incomeShare);
       }
       const lowerBound = Math.max(0, 1 - 2 * chordArea);
-      let deltaG = 0;
-      for (let i = 0; i < k; i++) {
-        const hi = points[i + 1].populationShare - points[i].populationShare;
-        const sPrev = i > 0 ? secants[i - 1] : 0;
-        const sNext = i < k - 1 ? secants[i + 1] : secants[i] * 1.5;
-        deltaG += 0.5 * hi * hi * (sNext - sPrev);
+      let maxDispersionSpread = 0;
+      for (let i = 0; i < bracketCount; i++) {
+        const stepWidth = points[i + 1].populationShare - points[i].populationShare;
+        const prevSlope = i > 0 ? secantSlopes[i - 1] : 0;
+        const nextSlope = i < bracketCount - 1 ? secantSlopes[i + 1] : secantSlopes[i] * 1.5;
+        maxDispersionSpread += 0.5 * stepWidth * stepWidth * (nextSlope - prevSlope);
       }
-      const upperBound = Math.min(1, lowerBound + deltaG);
+      const upperBound = Math.min(1, lowerBound + maxDispersionSpread);
       const intervalWidth = upperBound - lowerBound;
-      const gEst = estimatedGini ?? this.computeGini(200).giniIndex;
-      const isCertified = gEst >= lowerBound - 1e-7 && gEst <= upperBound + 1e-7;
+      const giniEstimate = estimatedGini ?? this.computeGini(200).giniIndex;
+      const isCertified = giniEstimate >= lowerBound - 1e-7 && giniEstimate <= upperBound + 1e-7;
       const maxError = 0.5 * intervalWidth;
       return {
         lowerBound,
         upperBound,
         intervalWidth,
-        estimatedGini: gEst,
+        estimatedGini: giniEstimate,
         isCertified,
         maxError
       };
     }
-    // Evaluates top-income wealth shares across high-net-worth brackets.
+    // Computes income shares held by standard policy brackets (top 10%/5%/1%, bottom 40%/50%, middle 40%).
     computeTopIncomeShares() {
-      const l40 = this.model.evaluate(0.4);
-      const l50 = this.model.evaluate(0.5);
-      const l90 = this.model.evaluate(0.9);
-      const l95 = this.model.evaluate(0.95);
-      const l99 = this.model.evaluate(0.99);
-      const l999 = this.model.evaluate(0.999);
-      const l9999 = this.model.evaluate(0.9999);
+      const shareAt40 = this.model.evaluate(0.4);
+      const shareAt50 = this.model.evaluate(0.5);
+      const shareAt90 = this.model.evaluate(0.9);
+      const shareAt95 = this.model.evaluate(0.95);
+      const shareAt99 = this.model.evaluate(0.99);
+      const shareAt999 = this.model.evaluate(0.999);
+      const shareAt9999 = this.model.evaluate(0.9999);
       return {
-        top10PercentShare: Math.max(0, Math.min(1, 1 - l90)),
-        top5PercentShare: Math.max(0, Math.min(1, 1 - l95)),
-        top1PercentShare: Math.max(0, Math.min(1, 1 - l99)),
-        top01PercentShare: Math.max(0, Math.min(1, 1 - l999)),
-        top001PercentShare: Math.max(0, Math.min(1, 1 - l9999)),
-        bottom40PercentShare: Math.max(0, Math.min(1, l40)),
-        bottom50PercentShare: Math.max(0, Math.min(1, l50)),
-        middle40PercentShare: Math.max(0, Math.min(1, l90 - l50))
+        top10PercentShare: Math.max(0, Math.min(1, 1 - shareAt90)),
+        top5PercentShare: Math.max(0, Math.min(1, 1 - shareAt95)),
+        top1PercentShare: Math.max(0, Math.min(1, 1 - shareAt99)),
+        top01PercentShare: Math.max(0, Math.min(1, 1 - shareAt999)),
+        top001PercentShare: Math.max(0, Math.min(1, 1 - shareAt9999)),
+        bottom40PercentShare: Math.max(0, Math.min(1, shareAt40)),
+        bottom50PercentShare: Math.max(0, Math.min(1, shareAt50)),
+        middle40PercentShare: Math.max(0, Math.min(1, shareAt90 - shareAt50))
       };
     }
-    // Evaluates poverty headcount sensitivity and elasticity with respect to threshold z and mean mu.
+    // Computes Kakwani poverty headcount elasticities with respect to poverty line z and mean income mu.
     computePovertyElasticities(povertyLine, meanIncome) {
-      const mu = meanIncome ?? this.model.getDataset().meanIncome;
-      if (mu <= 0) {
-        throw new Error(`Mean income must be positive, received ${mu}.`);
+      const effectiveMean = meanIncome ?? this.model.getDataset().meanIncome;
+      if (effectiveMean <= 0) {
+        throw new Error(`Mean income must be positive, received ${effectiveMean}.`);
       }
       if (povertyLine <= 0) {
         return {
           povertyHeadcount: 0,
           povertyLine,
-          meanIncome: mu,
+          meanIncome: effectiveMean,
           marginalIncome: 0,
           incomeDensity: 0,
           dH_dz: 0,
@@ -281,25 +292,25 @@
           elasticityMu: 0
         };
       }
-      const H = this.getPovertyHeadcount(povertyLine, mu);
-      const lPrime = this.model.derivative(H);
-      const lDoublePrime = this.model.secondDerivative(H);
-      const marginalIncome = mu * lPrime;
-      const incomeDensity = mu * lDoublePrime;
+      const headcount = this.getPovertyHeadcount(povertyLine, effectiveMean);
+      const firstDerivative = this.model.derivative(headcount);
+      const secondDerivative = this.model.secondDerivative(headcount);
+      const marginalIncome = effectiveMean * firstDerivative;
+      const incomeDensity = effectiveMean * secondDerivative;
       let dH_dz = 0;
       let dH_dmu = 0;
       let elasticityZ = 0;
       let elasticityMu = 0;
-      if (H > 1e-6 && H < 1 - 1e-6 && incomeDensity > 1e-12) {
+      if (headcount > 1e-6 && headcount < 1 - 1e-6 && incomeDensity > 1e-12) {
         dH_dz = 1 / incomeDensity;
-        dH_dmu = -povertyLine / (mu * incomeDensity);
-        elasticityZ = povertyLine / H * dH_dz;
-        elasticityMu = mu / H * dH_dmu;
+        dH_dmu = -povertyLine / (effectiveMean * incomeDensity);
+        elasticityZ = povertyLine / headcount * dH_dz;
+        elasticityMu = effectiveMean / headcount * dH_dmu;
       }
       return {
-        povertyHeadcount: H,
+        povertyHeadcount: headcount,
         povertyLine,
-        meanIncome: mu,
+        meanIncome: effectiveMean,
         marginalIncome,
         incomeDensity,
         dH_dz,
@@ -462,48 +473,48 @@
   // src/data/DatasetParser.ts
   var DatasetParser = class {
     static parseDelimited(text, options = {}) {
-      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0 && !l.startsWith("#") && !l.startsWith("//"));
-      if (lines.length < 2) {
+      const nonEmptyLines = text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0 && !line.startsWith("#") && !line.startsWith("//"));
+      if (nonEmptyLines.length < 2) {
         throw new Error("Dataset must contain at least two data points.");
       }
-      const firstLine = lines[0];
+      const firstLine = nonEmptyLines[0];
       const delimiter = this.detectDelimiter(firstLine);
-      let startIndex = 0;
-      const headerTokens = firstLine.split(delimiter).map((t) => t.trim().toLowerCase());
-      const isHeader = headerTokens.some((t) => isNaN(parseFloat(t.replace("%", ""))));
-      if (isHeader) {
-        startIndex = 1;
+      let startRowIndex = 0;
+      const headerTokens = firstLine.split(delimiter).map((token) => token.trim().toLowerCase());
+      const hasHeaderRow = headerTokens.some((token) => isNaN(parseFloat(token.replace("%", ""))));
+      if (hasHeaderRow) {
+        startRowIndex = 1;
       }
-      const pRaw = [];
-      const lRaw = [];
-      for (let i = startIndex; i < lines.length; i++) {
-        const line = lines[i];
-        const tokens = line.split(delimiter).map((t) => t.trim());
+      const rawPopValues = [];
+      const rawIncomeValues = [];
+      for (let i = startRowIndex; i < nonEmptyLines.length; i++) {
+        const line = nonEmptyLines[i];
+        const tokens = line.split(delimiter).map((token) => token.trim());
         if (tokens.length < 2) continue;
-        const pVal = this.parseNumericToken(tokens[0]);
-        const lVal = this.parseNumericToken(tokens[1]);
-        if (isNaN(pVal) || isNaN(lVal)) {
+        const popValue = this.parseNumericToken(tokens[0]);
+        const incomeValue = this.parseNumericToken(tokens[1]);
+        if (isNaN(popValue) || isNaN(incomeValue)) {
           throw new Error(`Invalid numerical value on line ${i + 1}: "${line}"`);
         }
-        pRaw.push(pVal);
-        lRaw.push(lVal);
+        rawPopValues.push(popValue);
+        rawIncomeValues.push(incomeValue);
       }
-      if (pRaw.length < 2) {
+      if (rawPopValues.length < 2) {
         throw new Error("Insufficient valid data points parsed from input table.");
       }
-      const pNormalized = this.normalizeProportions(pRaw);
-      let lNormalized = this.normalizeProportions(lRaw);
-      const isCumulative = options.assumeCumulative ?? this.detectIfCumulative(lNormalized);
+      const normalizedPop = this.normalizeProportions(rawPopValues);
+      let normalizedIncome = this.normalizeProportions(rawIncomeValues);
+      const isCumulative = options.assumeCumulative ?? this.detectIfCumulative(normalizedIncome);
       if (!isCumulative) {
-        lNormalized = this.cumulativeSum(lNormalized);
+        normalizedIncome = this.cumulativeSum(normalizedIncome);
       }
-      const data = {
-        p: pNormalized,
-        L: lNormalized,
+      const parsedData = {
+        p: normalizedPop,
+        L: normalizedIncome,
         name: options.name ?? "Custom Ingested Dataset",
         meanIncome: options.meanIncome
       };
-      return this.validateQuantiles(data);
+      return this.validateQuantiles(parsedData);
     }
     static parseJson(jsonText, options = {}) {
       let parsed;
@@ -520,8 +531,8 @@
         const L = [];
         for (let i = 0; i < parsed.length; i++) {
           const item = parsed[i];
-          const pVal = Number(item.p ?? item.pop ?? item.population ?? item.percentile ?? item.x);
-          const lVal = Number(item.L ?? item.income ?? item.share ?? item.cumIncome ?? item.y);
+          const pVal = Number(item.p ?? item.population);
+          const lVal = Number(item.L ?? item.income);
           if (isNaN(pVal) || isNaN(lVal)) {
             throw new Error(`Invalid numerical properties in JSON item at index ${i}`);
           }
@@ -532,8 +543,8 @@
       }
       if (typeof parsed === "object" && parsed !== null) {
         const obj = parsed;
-        const pArr = obj.p ?? obj.population ?? obj.percentiles;
-        const lArr = obj.L ?? obj.income ?? obj.shares;
+        const pArr = obj.p ?? obj.population;
+        const lArr = obj.L ?? obj.income;
         if (Array.isArray(pArr) && Array.isArray(lArr) && pArr.length >= 2) {
           const name = typeof obj.name === "string" ? obj.name : options.name;
           const meanIncome = typeof obj.meanIncome === "number" ? obj.meanIncome : options.meanIncome;
@@ -674,22 +685,24 @@
   // src/integration/SimpsonsIntegrator.ts
   var SimpsonsIntegrator = class {
     name = "Composite Simpson's Rule";
-    integrate(model, a = 0, b = 1, stepCount = 100) {
+    integrate(model, lowerLimit = 0, upperLimit = 1, stepCount = 100) {
       if (stepCount < 2) {
         throw new Error(`stepCount must be at least 2, received ${stepCount}.`);
       }
-      if (a >= b) {
-        throw new Error(`Lower bound a (${a}) must be strictly less than upper bound b (${b}).`);
+      if (lowerLimit >= upperLimit) {
+        throw new Error(
+          `Lower bound a (${lowerLimit}) must be strictly less than upper bound b (${upperLimit}).`
+        );
       }
-      const n = stepCount % 2 === 0 ? stepCount : stepCount + 1;
-      const h = (b - a) / n;
-      let sum = model.evaluate(a) + model.evaluate(b);
-      for (let i = 1; i < n; i++) {
-        const p = a + i * h;
-        const val = model.evaluate(p);
-        sum += (i % 2 === 1 ? 4 : 2) * val;
+      const subintervalCount = stepCount % 2 === 0 ? stepCount : stepCount + 1;
+      const stepWidth = (upperLimit - lowerLimit) / subintervalCount;
+      let weightedSum = model.evaluate(lowerLimit) + model.evaluate(upperLimit);
+      for (let i = 1; i < subintervalCount; i++) {
+        const percentile = lowerLimit + i * stepWidth;
+        const curveValue = model.evaluate(percentile);
+        weightedSum += (i % 2 === 1 ? 4 : 2) * curveValue;
       }
-      const areaUnderCurve = sum * h / 3;
+      const areaUnderCurve = weightedSum * stepWidth / 3;
       const giniIndex = 1 - 2 * areaUnderCurve;
       return {
         giniIndex,
@@ -710,67 +723,64 @@
     constructor(dataset, options = {}) {
       super(dataset);
       const shouldEnforceConvexity = options.enforceConvexity ?? true;
-      const n = this.points.length;
-      const h = new Float64Array(n - 1);
-      const delta = new Float64Array(n - 1);
-      for (let i = 0; i < n - 1; i++) {
-        h[i] = this.points[i + 1].populationShare - this.points[i].populationShare;
-        delta[i] = (this.points[i + 1].incomeShare - this.points[i].incomeShare) / h[i];
+      const knotCount = this.points.length;
+      const intervalWidths = new Float64Array(knotCount - 1);
+      const secantSlopes = new Float64Array(knotCount - 1);
+      for (let i = 0; i < knotCount - 1; i++) {
+        intervalWidths[i] = this.points[i + 1].populationShare - this.points[i].populationShare;
+        secantSlopes[i] = (this.points[i + 1].incomeShare - this.points[i].incomeShare) / intervalWidths[i];
       }
-      const d = new Float64Array(n);
-      for (let i = 1; i < n - 1; i++) {
-        if (delta[i - 1] * delta[i] <= 0) {
-          d[i] = 0;
+      const slopes = new Float64Array(knotCount);
+      for (let i = 1; i < knotCount - 1; i++) {
+        if (secantSlopes[i - 1] * secantSlopes[i] <= 0) {
+          slopes[i] = 0;
         } else {
-          d[i] = 2 * delta[i - 1] * delta[i] / (delta[i - 1] + delta[i]);
+          slopes[i] = 2 * secantSlopes[i - 1] * secantSlopes[i] / (secantSlopes[i - 1] + secantSlopes[i]);
         }
       }
-      d[0] = Math.max(0, 1.5 * delta[0] - 0.5 * d[1]);
-      d[n - 1] = Math.max(0, 1.5 * delta[n - 2] - 0.5 * d[n - 2]);
+      slopes[0] = Math.max(0, 1.5 * secantSlopes[0] - 0.5 * slopes[1]);
+      slopes[knotCount - 1] = Math.max(
+        0,
+        1.5 * secantSlopes[knotCount - 2] - 0.5 * slopes[knotCount - 2]
+      );
       let repaired = false;
       if (shouldEnforceConvexity) {
-        repaired = this.repairConvexity(d, delta, n);
+        repaired = this.repairConvexity(slopes, secantSlopes, knotCount);
       }
-      this.knotSlopes = Array.from(d);
+      this.knotSlopes = Array.from(slopes);
       this.wasConvexityRepaired = repaired;
-      this.aCoeffs = new Array(n - 1);
-      this.bCoeffs = new Array(n - 1);
-      this.cCoeffs = new Array(n - 1);
-      this.dCoeffs = new Array(n - 1);
-      for (let i = 0; i < n - 1; i++) {
+      this.aCoeffs = new Array(knotCount - 1);
+      this.bCoeffs = new Array(knotCount - 1);
+      this.cCoeffs = new Array(knotCount - 1);
+      this.dCoeffs = new Array(knotCount - 1);
+      for (let i = 0; i < knotCount - 1; i++) {
         this.aCoeffs[i] = this.points[i].incomeShare;
-        this.bCoeffs[i] = d[i];
-        this.cCoeffs[i] = (3 * delta[i] - 2 * d[i] - d[i + 1]) / h[i];
-        this.dCoeffs[i] = (d[i] + d[i + 1] - 2 * delta[i]) / (h[i] * h[i]);
+        this.bCoeffs[i] = slopes[i];
+        this.cCoeffs[i] = (3 * secantSlopes[i] - 2 * slopes[i] - slopes[i + 1]) / intervalWidths[i];
+        this.dCoeffs[i] = (slopes[i] + slopes[i + 1] - 2 * secantSlopes[i]) / (intervalWidths[i] * intervalWidths[i]);
       }
     }
-    repairConvexity(d, delta, n) {
+    repairConvexity(slopes, secantSlopes, knotCount) {
       let anyRepaired = false;
       const maxPasses = 5;
       for (let pass = 0; pass < maxPasses; pass++) {
         let passRepaired = false;
-        for (let i = 0; i < n - 1; i++) {
-          const secant = delta[i];
-          if (2 * d[i] + d[i + 1] > 3 * secant) {
-            const maxAllowedD = Math.max(0, (3 * secant - d[i + 1]) / 2);
-            if (maxAllowedD < d[i]) {
-              d[i] = maxAllowedD;
-              passRepaired = true;
-            }
-          }
-          if (d[i] + 2 * d[i + 1] < 3 * secant) {
-            const minAllowedDNext = (3 * secant - d[i]) / 2;
-            if (minAllowedDNext > d[i + 1]) {
-              d[i + 1] = minAllowedDNext;
-              passRepaired = true;
-            }
-          }
-          if (d[i] > secant) {
-            d[i] = secant;
+        for (let i = 0; i < knotCount - 1; i++) {
+          const secant = secantSlopes[i];
+          if (2 * slopes[i] + slopes[i + 1] > 3 * secant && slopes[i] > 0) {
+            slopes[i] = Math.max(0, (3 * secant - slopes[i + 1]) / 2);
             passRepaired = true;
           }
-          if (d[i + 1] < secant) {
-            d[i + 1] = secant;
+          if (slopes[i] + 2 * slopes[i + 1] < 3 * secant) {
+            slopes[i + 1] = (3 * secant - slopes[i]) / 2;
+            passRepaired = true;
+          }
+          if (slopes[i] > secant) {
+            slopes[i] = secant;
+            passRepaired = true;
+          }
+          if (slopes[i + 1] < secant) {
+            slopes[i + 1] = secant;
             passRepaired = true;
           }
         }
@@ -784,21 +794,21 @@
     }
     evaluate(p) {
       const clampedP = this.clampPopulation(p);
-      const i = this.findKnotInterval(clampedP);
-      const dx = clampedP - this.points[i].populationShare;
-      return this.aCoeffs[i] + this.bCoeffs[i] * dx + this.cCoeffs[i] * dx * dx + this.dCoeffs[i] * dx * dx * dx;
+      const bracketIdx = this.findKnotInterval(clampedP);
+      const localOffset = clampedP - this.points[bracketIdx].populationShare;
+      return this.aCoeffs[bracketIdx] + this.bCoeffs[bracketIdx] * localOffset + this.cCoeffs[bracketIdx] * localOffset * localOffset + this.dCoeffs[bracketIdx] * localOffset * localOffset * localOffset;
     }
     derivative(p) {
       const clampedP = this.clampPopulation(p);
-      const i = this.findKnotInterval(clampedP);
-      const dx = clampedP - this.points[i].populationShare;
-      return this.bCoeffs[i] + 2 * this.cCoeffs[i] * dx + 3 * this.dCoeffs[i] * dx * dx;
+      const bracketIdx = this.findKnotInterval(clampedP);
+      const localOffset = clampedP - this.points[bracketIdx].populationShare;
+      return this.bCoeffs[bracketIdx] + 2 * this.cCoeffs[bracketIdx] * localOffset + 3 * this.dCoeffs[bracketIdx] * localOffset * localOffset;
     }
     secondDerivative(p) {
       const clampedP = this.clampPopulation(p);
-      const i = this.findKnotInterval(clampedP);
-      const dx = clampedP - this.points[i].populationShare;
-      return 2 * this.cCoeffs[i] + 6 * this.dCoeffs[i] * dx;
+      const bracketIdx = this.findKnotInterval(clampedP);
+      const localOffset = clampedP - this.points[bracketIdx].populationShare;
+      return 2 * this.cCoeffs[bracketIdx] + 6 * this.dCoeffs[bracketIdx] * localOffset;
     }
     getKnotSlopes() {
       return this.knotSlopes;
@@ -814,46 +824,46 @@
       return this.solveVectors(system.lower, system.diag, system.upper, system.rhs);
     }
     solveVectors(lower, diag, upper, rhs) {
-      const n = diag.length;
-      if (rhs.length !== n) {
-        throw new Error(`RHS length (${rhs.length}) must match diagonal length (${n}).`);
+      const systemSize = diag.length;
+      if (rhs.length !== systemSize) {
+        throw new Error(`RHS length (${rhs.length}) must match diagonal length (${systemSize}).`);
       }
-      if (n === 0) {
+      if (systemSize === 0) {
         return [];
       }
-      if (n === 1) {
+      if (systemSize === 1) {
         if (Math.abs(diag[0]) < 1e-15) {
           throw new Error("Cannot solve 1x1 system with zero diagonal element.");
         }
         return [rhs[0] / diag[0]];
       }
-      if (lower.length !== n - 1) {
-        throw new Error(`Lower diagonal length (${lower.length}) must be n - 1 (${n - 1}).`);
+      if (lower.length !== systemSize - 1) {
+        throw new Error(`Lower diagonal length (${lower.length}) must be n - 1 (${systemSize - 1}).`);
       }
-      if (upper.length !== n - 1) {
-        throw new Error(`Upper diagonal length (${upper.length}) must be n - 1 (${n - 1}).`);
+      if (upper.length !== systemSize - 1) {
+        throw new Error(`Upper diagonal length (${upper.length}) must be n - 1 (${systemSize - 1}).`);
       }
-      const cPrime = new Float64Array(n - 1);
-      const dPrime = new Float64Array(n);
+      const modifiedSuperDiag = new Float64Array(systemSize - 1);
+      const modifiedRhs = new Float64Array(systemSize);
       if (Math.abs(diag[0]) < 1e-15) {
         throw new Error("Zero pivot encountered at row 0.");
       }
-      cPrime[0] = upper[0] / diag[0];
-      dPrime[0] = rhs[0] / diag[0];
-      for (let i = 1; i < n; i++) {
-        const denom = diag[i] - lower[i - 1] * cPrime[i - 1];
-        if (Math.abs(denom) < 1e-15) {
+      modifiedSuperDiag[0] = upper[0] / diag[0];
+      modifiedRhs[0] = rhs[0] / diag[0];
+      for (let i = 1; i < systemSize; i++) {
+        const pivotDenom = diag[i] - lower[i - 1] * modifiedSuperDiag[i - 1];
+        if (Math.abs(pivotDenom) < 1e-15) {
           throw new Error(`Zero pivot encountered at row ${i}.`);
         }
-        if (i < n - 1) {
-          cPrime[i] = upper[i] / denom;
+        if (i < systemSize - 1) {
+          modifiedSuperDiag[i] = upper[i] / pivotDenom;
         }
-        dPrime[i] = (rhs[i] - lower[i - 1] * dPrime[i - 1]) / denom;
+        modifiedRhs[i] = (rhs[i] - lower[i - 1] * modifiedRhs[i - 1]) / pivotDenom;
       }
-      const solution = new Array(n);
-      solution[n - 1] = dPrime[n - 1];
-      for (let i = n - 2; i >= 0; i--) {
-        solution[i] = dPrime[i] - cPrime[i] * solution[i + 1];
+      const solution = new Array(systemSize);
+      solution[systemSize - 1] = modifiedRhs[systemSize - 1];
+      for (let i = systemSize - 2; i >= 0; i--) {
+        solution[i] = modifiedRhs[i] - modifiedSuperDiag[i] * solution[i + 1];
       }
       return solution;
     }
@@ -870,103 +880,103 @@
     constructor(dataset, options = {}) {
       super(dataset);
       this.boundaryType = options.boundaryType ?? "natural";
-      const n = this.points.length;
-      const h = new Float64Array(n - 1);
-      const delta = new Float64Array(n - 1);
-      for (let i = 0; i < n - 1; i++) {
-        h[i] = this.points[i + 1].populationShare - this.points[i].populationShare;
-        delta[i] = (this.points[i + 1].incomeShare - this.points[i].incomeShare) / h[i];
+      const knotCount = this.points.length;
+      const intervalWidths = new Float64Array(knotCount - 1);
+      const secantSlopes = new Float64Array(knotCount - 1);
+      for (let i = 0; i < knotCount - 1; i++) {
+        intervalWidths[i] = this.points[i + 1].populationShare - this.points[i].populationShare;
+        secantSlopes[i] = (this.points[i + 1].incomeShare - this.points[i].incomeShare) / intervalWidths[i];
       }
       const solver = new TridiagonalSolver();
-      const M = new Float64Array(n);
+      const curvatures = new Float64Array(knotCount);
       if (this.boundaryType === "natural") {
-        M[0] = 0;
-        M[n - 1] = 0;
-        if (n > 2) {
-          const numInterior = n - 2;
-          const lower = new Float64Array(numInterior - 1);
-          const diag = new Float64Array(numInterior);
-          const upper = new Float64Array(numInterior - 1);
-          const rhs = new Float64Array(numInterior);
-          for (let i = 0; i < numInterior; i++) {
+        curvatures[0] = 0;
+        curvatures[knotCount - 1] = 0;
+        if (knotCount > 2) {
+          const interiorCount = knotCount - 2;
+          const subDiagonal = new Float64Array(interiorCount - 1);
+          const mainDiagonal = new Float64Array(interiorCount);
+          const superDiagonal = new Float64Array(interiorCount - 1);
+          const rhsVector = new Float64Array(interiorCount);
+          for (let i = 0; i < interiorCount; i++) {
             const knotIdx = i + 1;
-            diag[i] = 2 * (h[knotIdx - 1] + h[knotIdx]);
-            rhs[i] = 6 * (delta[knotIdx] - delta[knotIdx - 1]);
+            mainDiagonal[i] = 2 * (intervalWidths[knotIdx - 1] + intervalWidths[knotIdx]);
+            rhsVector[i] = 6 * (secantSlopes[knotIdx] - secantSlopes[knotIdx - 1]);
             if (i > 0) {
-              lower[i - 1] = h[knotIdx - 1];
+              subDiagonal[i - 1] = intervalWidths[knotIdx - 1];
             }
-            if (i < numInterior - 1) {
-              upper[i] = h[knotIdx];
+            if (i < interiorCount - 1) {
+              superDiagonal[i] = intervalWidths[knotIdx];
             }
           }
-          const interiorM = solver.solveVectors(
-            Array.from(lower),
-            Array.from(diag),
-            Array.from(upper),
-            Array.from(rhs)
+          const interiorCurvatures = solver.solveVectors(
+            Array.from(subDiagonal),
+            Array.from(mainDiagonal),
+            Array.from(superDiagonal),
+            Array.from(rhsVector)
           );
-          for (let i = 0; i < numInterior; i++) {
-            M[i + 1] = interiorM[i];
+          for (let i = 0; i < interiorCount; i++) {
+            curvatures[i + 1] = interiorCurvatures[i];
           }
         }
       } else {
-        const fPrime0 = options.clampStartSlope ?? 0;
-        const fPrimeN = options.clampEndSlope ?? delta[n - 2];
-        const lower = new Float64Array(n - 1);
-        const diag = new Float64Array(n);
-        const upper = new Float64Array(n - 1);
-        const rhs = new Float64Array(n);
-        diag[0] = 2 * h[0];
-        upper[0] = h[0];
-        rhs[0] = 6 * (delta[0] - fPrime0);
-        for (let i = 1; i < n - 1; i++) {
-          lower[i - 1] = h[i - 1];
-          diag[i] = 2 * (h[i - 1] + h[i]);
-          upper[i] = h[i];
-          rhs[i] = 6 * (delta[i] - delta[i - 1]);
+        const startSlope = options.clampStartSlope ?? 0;
+        const endSlope = options.clampEndSlope ?? secantSlopes[knotCount - 2];
+        const subDiagonal = new Float64Array(knotCount - 1);
+        const mainDiagonal = new Float64Array(knotCount);
+        const superDiagonal = new Float64Array(knotCount - 1);
+        const rhsVector = new Float64Array(knotCount);
+        mainDiagonal[0] = 2 * intervalWidths[0];
+        superDiagonal[0] = intervalWidths[0];
+        rhsVector[0] = 6 * (secantSlopes[0] - startSlope);
+        for (let i = 1; i < knotCount - 1; i++) {
+          subDiagonal[i - 1] = intervalWidths[i - 1];
+          mainDiagonal[i] = 2 * (intervalWidths[i - 1] + intervalWidths[i]);
+          superDiagonal[i] = intervalWidths[i];
+          rhsVector[i] = 6 * (secantSlopes[i] - secantSlopes[i - 1]);
         }
-        lower[n - 2] = h[n - 2];
-        diag[n - 1] = 2 * h[n - 2];
-        rhs[n - 1] = 6 * (fPrimeN - delta[n - 2]);
-        const solvedM = solver.solveVectors(
-          Array.from(lower),
-          Array.from(diag),
-          Array.from(upper),
-          Array.from(rhs)
+        subDiagonal[knotCount - 2] = intervalWidths[knotCount - 2];
+        mainDiagonal[knotCount - 1] = 2 * intervalWidths[knotCount - 2];
+        rhsVector[knotCount - 1] = 6 * (endSlope - secantSlopes[knotCount - 2]);
+        const solvedCurvatures = solver.solveVectors(
+          Array.from(subDiagonal),
+          Array.from(mainDiagonal),
+          Array.from(superDiagonal),
+          Array.from(rhsVector)
         );
-        for (let i = 0; i < n; i++) {
-          M[i] = solvedM[i];
+        for (let i = 0; i < knotCount; i++) {
+          curvatures[i] = solvedCurvatures[i];
         }
       }
-      this.secondDerivatives = Array.from(M);
-      this.aCoeffs = new Array(n - 1);
-      this.bCoeffs = new Array(n - 1);
-      this.cCoeffs = new Array(n - 1);
-      this.dCoeffs = new Array(n - 1);
-      for (let i = 0; i < n - 1; i++) {
+      this.secondDerivatives = Array.from(curvatures);
+      this.aCoeffs = new Array(knotCount - 1);
+      this.bCoeffs = new Array(knotCount - 1);
+      this.cCoeffs = new Array(knotCount - 1);
+      this.dCoeffs = new Array(knotCount - 1);
+      for (let i = 0; i < knotCount - 1; i++) {
         this.aCoeffs[i] = this.points[i].incomeShare;
-        this.cCoeffs[i] = M[i] / 2;
-        this.dCoeffs[i] = (M[i + 1] - M[i]) / (6 * h[i]);
-        this.bCoeffs[i] = delta[i] - (2 * M[i] + M[i + 1]) * h[i] / 6;
+        this.cCoeffs[i] = curvatures[i] / 2;
+        this.dCoeffs[i] = (curvatures[i + 1] - curvatures[i]) / (6 * intervalWidths[i]);
+        this.bCoeffs[i] = secantSlopes[i] - (2 * curvatures[i] + curvatures[i + 1]) * intervalWidths[i] / 6;
       }
     }
     evaluate(p) {
       const clampedP = this.clampPopulation(p);
-      const i = this.findKnotInterval(clampedP);
-      const dx = clampedP - this.points[i].populationShare;
-      return this.aCoeffs[i] + this.bCoeffs[i] * dx + this.cCoeffs[i] * dx * dx + this.dCoeffs[i] * dx * dx * dx;
+      const bracketIdx = this.findKnotInterval(clampedP);
+      const localOffset = clampedP - this.points[bracketIdx].populationShare;
+      return this.aCoeffs[bracketIdx] + this.bCoeffs[bracketIdx] * localOffset + this.cCoeffs[bracketIdx] * localOffset * localOffset + this.dCoeffs[bracketIdx] * localOffset * localOffset * localOffset;
     }
     derivative(p) {
       const clampedP = this.clampPopulation(p);
-      const i = this.findKnotInterval(clampedP);
-      const dx = clampedP - this.points[i].populationShare;
-      return this.bCoeffs[i] + 2 * this.cCoeffs[i] * dx + 3 * this.dCoeffs[i] * dx * dx;
+      const bracketIdx = this.findKnotInterval(clampedP);
+      const localOffset = clampedP - this.points[bracketIdx].populationShare;
+      return this.bCoeffs[bracketIdx] + 2 * this.cCoeffs[bracketIdx] * localOffset + 3 * this.dCoeffs[bracketIdx] * localOffset * localOffset;
     }
     secondDerivative(p) {
       const clampedP = this.clampPopulation(p);
-      const i = this.findKnotInterval(clampedP);
-      const dx = clampedP - this.points[i].populationShare;
-      return 2 * this.cCoeffs[i] + 6 * this.dCoeffs[i] * dx;
+      const bracketIdx = this.findKnotInterval(clampedP);
+      const localOffset = clampedP - this.points[bracketIdx].populationShare;
+      return 2 * this.cCoeffs[bracketIdx] + 6 * this.dCoeffs[bracketIdx] * localOffset;
     }
     getBoundaryType() {
       return this.boundaryType;
@@ -1063,40 +1073,34 @@
     const t = x + g + 0.5;
     return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(aSum);
   }
+  function clampTinyDenominator(value, minMagnitude = 1e-30) {
+    return Math.abs(value) < minMagnitude ? minMagnitude : value;
+  }
   function betacf(a, b, x) {
-    const MAXIT = 200;
-    const EPS = 1e-12;
-    const FPMIN = 1e-30;
+    const maxIterations = 200;
+    const convergenceTol = 1e-12;
     const qab = a + b;
     const qap = a + 1;
     const qam = a - 1;
-    let c = 1;
-    let d = 1 - qab * x / qap;
-    if (Math.abs(d) < FPMIN) d = FPMIN;
-    d = 1 / d;
-    let h = d;
-    for (let m = 1; m <= MAXIT; m++) {
-      const m2 = 2 * m;
-      let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
-      d = 1 + aa * d;
-      if (Math.abs(d) < FPMIN) d = FPMIN;
-      c = 1 + aa / c;
-      if (Math.abs(c) < FPMIN) c = FPMIN;
-      d = 1 / d;
-      h *= d * c;
-      aa = -((a + m) * (qab + m) * x) / ((a + m2) * (qap + m2));
-      d = 1 + aa * d;
-      if (Math.abs(d) < FPMIN) d = FPMIN;
-      c = 1 + aa / c;
-      if (Math.abs(c) < FPMIN) c = FPMIN;
-      d = 1 / d;
-      const del = d * c;
-      h *= del;
-      if (Math.abs(del - 1) < EPS) {
+    let cFactor = 1;
+    let dFactor = 1 / clampTinyDenominator(1 - qab * x / qap);
+    let fractionValue = dFactor;
+    for (let m = 1; m <= maxIterations; m++) {
+      const twoM = 2 * m;
+      const evenCoeff = m * (b - m) * x / ((qam + twoM) * (a + twoM));
+      dFactor = 1 / clampTinyDenominator(1 + evenCoeff * dFactor);
+      cFactor = clampTinyDenominator(1 + evenCoeff / cFactor);
+      fractionValue *= dFactor * cFactor;
+      const oddCoeff = -((a + m) * (qab + m) * x) / ((a + twoM) * (qap + twoM));
+      dFactor = 1 / clampTinyDenominator(1 + oddCoeff * dFactor);
+      cFactor = clampTinyDenominator(1 + oddCoeff / cFactor);
+      const stepDelta = dFactor * cFactor;
+      fractionValue *= stepDelta;
+      if (Math.abs(stepDelta - 1) < convergenceTol) {
         break;
       }
     }
-    return h;
+    return fractionValue;
   }
   function regularizedIncompleteBeta(a, b, x) {
     if (x <= 0) return 0;
@@ -1171,11 +1175,14 @@
       const u = 1 - Math.pow(1 - p, 1 / this.q);
       return regularizedIncompleteBeta(1 + 1 / this.a, this.q - 1 / this.a, u);
     }
-    sampleQuantiles(k, meanIncome = 5e4) {
+    sampleQuantiles(bracketCount, meanIncome = 5e4) {
+      if (bracketCount < 2) {
+        throw new Error(`Subinterval count k must be at least 2, received ${bracketCount}.`);
+      }
       const points = [{ populationShare: 0, incomeShare: 0 }];
-      for (let i = 1; i < k; i++) {
-        const p = i / k;
-        points.push({ populationShare: p, incomeShare: this.evaluateLorenz(p) });
+      for (let i = 1; i < bracketCount; i++) {
+        const percentile = i / bracketCount;
+        points.push({ populationShare: percentile, incomeShare: this.evaluateLorenz(percentile) });
       }
       points.push({ populationShare: 1, incomeShare: 1 });
       return {
@@ -1208,11 +1215,14 @@
       const u = Math.pow(p, 1 / this.p0);
       return regularizedIncompleteBeta(this.p0 + 1 / this.a, 1 - 1 / this.a, u);
     }
-    sampleQuantiles(k, meanIncome = 5e4) {
+    sampleQuantiles(bracketCount, meanIncome = 5e4) {
+      if (bracketCount < 2) {
+        throw new Error(`Subinterval count k must be at least 2, received ${bracketCount}.`);
+      }
       const points = [{ populationShare: 0, incomeShare: 0 }];
-      for (let i = 1; i < k; i++) {
-        const p = i / k;
-        points.push({ populationShare: p, incomeShare: this.evaluateLorenz(p) });
+      for (let i = 1; i < bracketCount; i++) {
+        const percentile = i / bracketCount;
+        points.push({ populationShare: percentile, incomeShare: this.evaluateLorenz(percentile) });
       }
       points.push({ populationShare: 1, incomeShare: 1 });
       return {
@@ -1226,32 +1236,32 @@
   var NewtonRaphsonSolver = class {
     name = "Newton-Raphson";
     solve(fn, dfn, initialGuess, lowerBound = -Infinity, upperBound = Infinity, tolerance = 1e-8, maxIterations = 100) {
-      let x = initialGuess;
+      let currentX = initialGuess;
       for (let iter = 1; iter <= maxIterations; iter++) {
-        const fx = fn(x);
-        const dfx = dfn(x);
-        if (Math.abs(fx) <= tolerance) {
+        const fVal = fn(currentX);
+        const derivativeVal = dfn(currentX);
+        if (Math.abs(fVal) <= tolerance) {
           return {
-            root: x,
-            populationPercentile: x,
+            root: currentX,
+            populationPercentile: currentX,
             iterations: iter,
             converged: true,
-            finalError: Math.abs(fx)
+            finalError: Math.abs(fVal)
           };
         }
-        if (Math.abs(dfx) < 1e-15) {
+        if (Math.abs(derivativeVal) < 1e-15) {
           if (Number.isFinite(lowerBound) && Number.isFinite(upperBound)) {
-            x = (lowerBound + upperBound) / 2;
+            currentX = (lowerBound + upperBound) / 2;
             continue;
           }
-          throw new Error(`Derivative too close to zero at x = ${x} (df = ${dfx}).`);
+          throw new Error(`Derivative too close to zero at x = ${currentX} (df = ${derivativeVal}).`);
         }
-        const step = fx / dfx;
-        let nextX = x - step;
+        const newtonStep = fVal / derivativeVal;
+        let nextX = currentX - newtonStep;
         if (nextX < lowerBound || nextX > upperBound) {
-          nextX = Math.max(lowerBound, Math.min(upperBound, x - 0.5 * step));
+          nextX = Math.max(lowerBound, Math.min(upperBound, currentX - 0.5 * newtonStep));
         }
-        if (Math.abs(nextX - x) <= tolerance && Math.abs(fn(nextX)) <= tolerance) {
+        if (Math.abs(nextX - currentX) <= tolerance && Math.abs(fn(nextX)) <= tolerance) {
           return {
             root: nextX,
             populationPercentile: nextX,
@@ -1260,14 +1270,14 @@
             finalError: Math.abs(fn(nextX))
           };
         }
-        x = nextX;
+        currentX = nextX;
       }
       return {
-        root: x,
-        populationPercentile: x,
+        root: currentX,
+        populationPercentile: currentX,
         iterations: maxIterations,
         converged: false,
-        finalError: Math.abs(fn(x))
+        finalError: Math.abs(fn(currentX))
       };
     }
     findRoot(model, targetIncomeShare, lowerBound = 0, upperBound = 1, tolerance = 1e-8, maxIterations = 100) {
@@ -1288,60 +1298,61 @@
   var BisectionSolver = class {
     name = "Bisection Method";
     solve(fn, lowerBound, upperBound, tolerance = 1e-8, maxIterations = 100) {
-      let a = lowerBound;
-      let b = upperBound;
-      let fa = fn(a);
-      let fb = fn(b);
-      if (Math.abs(fa) <= tolerance) {
+      let leftBound = lowerBound;
+      let rightBound = upperBound;
+      let fLeft = fn(leftBound);
+      const fRight = fn(rightBound);
+      if (Math.abs(fLeft) <= tolerance) {
         return {
-          root: a,
-          populationPercentile: a,
+          root: leftBound,
+          populationPercentile: leftBound,
           iterations: 0,
           converged: true,
-          finalError: Math.abs(fa)
+          finalError: Math.abs(fLeft)
         };
       }
-      if (Math.abs(fb) <= tolerance) {
+      if (Math.abs(fRight) <= tolerance) {
         return {
-          root: b,
-          populationPercentile: b,
+          root: rightBound,
+          populationPercentile: rightBound,
           iterations: 0,
           converged: true,
-          finalError: Math.abs(fb)
+          finalError: Math.abs(fRight)
         };
       }
-      if (fa * fb > 0) {
-        throw new Error(`Root is not bracketed: f(${a})=${fa} and f(${b})=${fb} have the same sign.`);
+      if (fLeft * fRight > 0) {
+        throw new Error(
+          `Root is not bracketed: f(${leftBound})=${fLeft} and f(${rightBound})=${fRight} have the same sign.`
+        );
       }
-      let mid = a;
-      let fmid = fa;
+      let midpoint = leftBound;
+      let fMid = fLeft;
       for (let iter = 1; iter <= maxIterations; iter++) {
-        mid = a + (b - a) / 2;
-        fmid = fn(mid);
-        const halfInterval = (b - a) / 2;
-        if (Math.abs(fmid) <= tolerance || halfInterval <= tolerance) {
+        midpoint = leftBound + (rightBound - leftBound) / 2;
+        fMid = fn(midpoint);
+        const halfInterval = (rightBound - leftBound) / 2;
+        if (Math.abs(fMid) <= tolerance || halfInterval <= tolerance) {
           return {
-            root: mid,
-            populationPercentile: mid,
+            root: midpoint,
+            populationPercentile: midpoint,
             iterations: iter,
             converged: true,
-            finalError: Math.abs(fmid)
+            finalError: Math.abs(fMid)
           };
         }
-        if (fa * fmid < 0) {
-          b = mid;
-          fb = fmid;
+        if (fLeft * fMid < 0) {
+          rightBound = midpoint;
         } else {
-          a = mid;
-          fa = fmid;
+          leftBound = midpoint;
+          fLeft = fMid;
         }
       }
       return {
-        root: mid,
-        populationPercentile: mid,
+        root: midpoint,
+        populationPercentile: midpoint,
         iterations: maxIterations,
         converged: false,
-        finalError: Math.abs(fmid)
+        finalError: Math.abs(fMid)
       };
     }
     findRoot(model, targetIncomeShare, lowerBound = 0, upperBound = 1, tolerance = 1e-8, maxIterations = 100) {
@@ -1393,9 +1404,9 @@
       if (clampedP <= this.splicePoint) {
         return this.bodyModel.evaluate(clampedP);
       }
-      const t = (1 - clampedP) / (1 - this.splicePoint);
-      const exponent = 1 - 1 / this.tailAlpha;
-      return 1 - (1 - this.lSplice) * Math.pow(t, exponent);
+      const tailRatio = (1 - clampedP) / (1 - this.splicePoint);
+      const tailExponent = 1 - 1 / this.tailAlpha;
+      return 1 - (1 - this.lSplice) * Math.pow(tailRatio, tailExponent);
     }
     derivative(p) {
       const clampedP = this.clampPopulation(p);
@@ -1405,28 +1416,21 @@
       if (clampedP <= this.splicePoint) {
         return this.bodyModel.derivative(clampedP);
       }
-      if (clampedP >= 1 - 1e-12) {
-        const t2 = 1e-12 / (1 - this.splicePoint);
-        const factor2 = (1 - this.lSplice) / (1 - this.splicePoint) * (1 - 1 / this.tailAlpha);
-        return factor2 * Math.pow(t2, -1 / this.tailAlpha);
-      }
-      const t = (1 - clampedP) / (1 - this.splicePoint);
-      const factor = (1 - this.lSplice) / (1 - this.splicePoint) * (1 - 1 / this.tailAlpha);
-      return factor * Math.pow(t, -1 / this.tailAlpha);
+      const safeRemainingPop = Math.max(1e-12, 1 - clampedP);
+      const tailRatio = safeRemainingPop / (1 - this.splicePoint);
+      const scaleFactor = (1 - this.lSplice) / (1 - this.splicePoint) * (1 - 1 / this.tailAlpha);
+      return scaleFactor * Math.pow(tailRatio, -1 / this.tailAlpha);
     }
     secondDerivative(p) {
       const clampedP = this.clampPopulation(p);
       if (clampedP <= this.splicePoint) {
         return this.bodyModel.secondDerivative(clampedP);
       }
-      const denom = Math.pow(1 - this.splicePoint, 2);
-      const factor = (1 - this.lSplice) / denom * ((this.tailAlpha - 1) / (this.tailAlpha * this.tailAlpha));
-      if (clampedP >= 1 - 1e-12) {
-        const t2 = 1e-12 / (1 - this.splicePoint);
-        return factor * Math.pow(t2, -(this.tailAlpha + 1) / this.tailAlpha);
-      }
-      const t = (1 - clampedP) / (1 - this.splicePoint);
-      return factor * Math.pow(t, -(this.tailAlpha + 1) / this.tailAlpha);
+      const tailWidthSquared = Math.pow(1 - this.splicePoint, 2);
+      const scaleFactor = (1 - this.lSplice) / tailWidthSquared * ((this.tailAlpha - 1) / (this.tailAlpha * this.tailAlpha));
+      const safeRemainingPop = Math.max(1e-12, 1 - clampedP);
+      const tailRatio = safeRemainingPop / (1 - this.splicePoint);
+      return scaleFactor * Math.pow(tailRatio, -(this.tailAlpha + 1) / this.tailAlpha);
     }
     getSplicePoint() {
       return this.splicePoint;
@@ -1438,48 +1442,49 @@
       return this.bodyModel;
     }
     analyticalTailArea() {
-      const remainingP = 1 - this.splicePoint;
-      const remainingL = 1 - this.lSplice;
-      const factor = this.tailAlpha * remainingL / (2 * this.tailAlpha - 1);
-      return remainingP * (1 - factor);
+      const remainingPop = 1 - this.splicePoint;
+      const remainingIncome = 1 - this.lSplice;
+      const paretoAreaFactor = this.tailAlpha * remainingIncome / (2 * this.tailAlpha - 1);
+      return remainingPop * (1 - paretoAreaFactor);
     }
     analyticalTotalArea(bodySubintervals = 200) {
-      const n = bodySubintervals % 2 === 0 ? bodySubintervals : bodySubintervals + 1;
-      const h = this.splicePoint / n;
+      const subintervalCount = bodySubintervals % 2 === 0 ? bodySubintervals : bodySubintervals + 1;
+      const stepWidth = this.splicePoint / subintervalCount;
       let bodySum = this.bodyModel.evaluate(0) + this.bodyModel.evaluate(this.splicePoint);
-      for (let i = 1; i < n; i++) {
-        const p = i * h;
-        bodySum += (i % 2 === 1 ? 4 : 2) * this.bodyModel.evaluate(p);
+      for (let i = 1; i < subintervalCount; i++) {
+        const percentile = i * stepWidth;
+        bodySum += (i % 2 === 1 ? 4 : 2) * this.bodyModel.evaluate(percentile);
       }
-      const bodyArea = bodySum * h / 3;
+      const bodyArea = bodySum * stepWidth / 3;
       return bodyArea + this.analyticalTailArea();
     }
     analyticalGini(bodySubintervals = 200) {
-      const area = this.analyticalTotalArea(bodySubintervals);
-      return 1 - 2 * area;
+      const totalArea = this.analyticalTotalArea(bodySubintervals);
+      return 1 - 2 * totalArea;
     }
     selectDefaultSplicePoint() {
-      const n = this.points.length;
-      if (n >= 4) {
-        return this.points[n - 2].populationShare;
+      const knotCount = this.points.length;
+      if (knotCount >= 4) {
+        return this.points[knotCount - 2].populationShare;
       }
       return 0.8;
     }
+    // Solves (1 - L*) / (1 - p*) * (1 - 1/alpha) = L'(p*) for alpha, clamping if L'(p*) >= secant slope.
     computeAnalyticalAlpha(pStar, lStar, dStar) {
-      const remainingP = 1 - pStar;
-      const remainingL = 1 - lStar;
-      if (remainingP <= 0 || remainingL <= 0) {
+      const remainingPop = 1 - pStar;
+      const remainingIncome = 1 - lStar;
+      if (remainingIncome <= 0) {
         return 2;
       }
-      const secantSlope = remainingL / remainingP;
-      const denominator = remainingL - remainingP * dStar;
-      if (denominator <= 1e-7 || dStar >= secantSlope) {
-        const targetDerivative = 0.92 * secantSlope;
-        const safeDenominator = remainingL - remainingP * targetDerivative;
-        return Math.max(1.05, remainingL / safeDenominator);
+      const tailSecantSlope = remainingIncome / remainingPop;
+      const alphaDenominator = remainingIncome - remainingPop * dStar;
+      if (alphaDenominator <= 1e-7 || dStar >= tailSecantSlope) {
+        const clampedDerivative = 0.92 * tailSecantSlope;
+        const safeDenominator = remainingIncome - remainingPop * clampedDerivative;
+        return Math.max(1.05, remainingIncome / safeDenominator);
       }
-      const alpha = remainingL / denominator;
-      return Math.max(1.05, alpha);
+      const calibratedAlpha = remainingIncome / alphaDenominator;
+      return Math.max(1.05, calibratedAlpha);
     }
   };
 
@@ -1510,14 +1515,13 @@
   var SensitivityAnalyzer = class {
     static integrator = new SimpsonsIntegrator();
     static rootFinder = new BisectionSolver();
-    // Performs systematic parametric scan across Pareto splicing knot p* in [startP, endP].
-    static sweepParetoSplice(dataset, startP = 0.6, endP = 0.95, step = 0.05, bodyModelType = "pchip") {
+    // Scans Pareto splicing knot p* across [startP, endP] and records Gini, alpha, and curvature jump.
+    static sweepParetoSplice(dataset, startP = 0.6, endP = 0.95, stepSize = 0.05, bodyModelType = "pchip") {
       const records = [];
       const baseSpline = bodyModelType === "cubicspline" ? new CubicSplineLorenzCurve(dataset) : new PchipLorenzCurve(dataset);
-      const stepsCount = Math.max(1, Math.round((endP - startP) / step));
-      for (let i = 0; i <= stepsCount; i++) {
-        const pStar = Math.min(endP, Number((startP + i * step).toFixed(4)));
-        if (pStar <= 0 || pStar >= 1) continue;
+      const stepCount = Math.max(1, Math.round((endP - startP) / stepSize));
+      for (let i = 0; i <= stepCount; i++) {
+        const pStar = Math.min(endP, Number((startP + i * stepSize).toFixed(4)));
         try {
           const hybrid = new HybridLorenzCurve(dataset, {
             bodyModel: baseSpline,
@@ -1525,8 +1529,8 @@
           });
           const engine = new InequalityEngine(hybrid, this.integrator, this.rootFinder);
           const giniResult = engine.computeGini(200);
-          const cert = engine.certifyGastwirthBounds(giniResult.giniIndex);
-          const alpha = hybrid.getTailAlpha();
+          const certificate = engine.certifyGastwirthBounds(giniResult.giniIndex);
+          const tailAlpha = hybrid.getTailAlpha();
           const top1PercentShare = Math.max(0, Math.min(1, 1 - hybrid.evaluate(0.99)));
           const top01PercentShare = Math.max(0, Math.min(1, 1 - hybrid.evaluate(0.999)));
           const splineCurvature = baseSpline.secondDerivative(pStar);
@@ -1535,11 +1539,11 @@
           records.push({
             pStar,
             giniIndex: giniResult.giniIndex,
-            tailAlpha: alpha,
+            tailAlpha,
             top1PercentShare,
             top01PercentShare,
             secondDerivativeJump,
-            isCertified: cert.isCertified
+            isCertified: certificate.isCertified
           });
         } catch {
           continue;
@@ -1588,83 +1592,69 @@
   // src/diagnostics/ModelSelectionEvaluator.ts
   var ModelSelectionEvaluator = class {
     static EPSILON_RSS = 1e-14;
-    /**
-     * Computes maximized log-likelihood under Gaussian error distribution:
-     * ln(L) = -0.5 * n * ln(2*pi) - 0.5 * n * ln(RSS / n) - 0.5 * n
-     */
+    // Gaussian log-likelihood: ln(L) = -0.5*n*ln(2*pi) - 0.5*n*ln(RSS/n) - 0.5*n.
     static computeLogLikelihood(sampleSize, rss) {
       if (sampleSize <= 0) {
         throw new Error("Sample size must be strictly positive.");
       }
-      const safeRss = Math.max(rss, this.EPSILON_RSS);
-      return -0.5 * sampleSize * Math.log(2 * Math.PI) - 0.5 * sampleSize * Math.log(safeRss / sampleSize) - 0.5 * sampleSize;
+      const clampedRss = Math.max(rss, this.EPSILON_RSS);
+      return -0.5 * sampleSize * Math.log(2 * Math.PI) - 0.5 * sampleSize * Math.log(clampedRss / sampleSize) - 0.5 * sampleSize;
     }
-    /**
-     * Standard Akaike Information Criterion:
-     * AIC = 2*k - 2*ln(L)
-     */
-    static computeAIC(sampleSize, rss, k) {
-      const ll = this.computeLogLikelihood(sampleSize, rss);
-      return 2 * k - 2 * ll;
+    // Standard Akaike Information Criterion: AIC = 2*k - 2*ln(L).
+    static computeAIC(sampleSize, rss, paramCount) {
+      const logLikelihood = this.computeLogLikelihood(sampleSize, rss);
+      return 2 * paramCount - 2 * logLikelihood;
     }
-    /**
-     * Hurvich & Tsai (1989) small-sample corrected AIC:
-     * AICc = AIC + (2*k*(k+1)) / (n - k - 1)
-     */
-    static computeAICc(sampleSize, rss, k) {
-      const aic = this.computeAIC(sampleSize, rss, k);
-      const denominator = sampleSize - k - 1;
-      if (denominator <= 0) {
+    // Hurvich-Tsai small-sample correction: AICc = AIC + 2*k*(k+1) / (n - k - 1).
+    static computeAICc(sampleSize, rss, paramCount) {
+      const aic = this.computeAIC(sampleSize, rss, paramCount);
+      const degreesOfFreedom = sampleSize - paramCount - 1;
+      if (degreesOfFreedom <= 0) {
         return Number.POSITIVE_INFINITY;
       }
-      return aic + 2 * k * (k + 1) / denominator;
+      return aic + 2 * paramCount * (paramCount + 1) / degreesOfFreedom;
     }
-    /**
-     * Bayesian Information Criterion (Schwarz 1978):
-     * BIC = k * ln(n) - 2 * ln(L)
-     */
-    static computeBIC(sampleSize, rss, k) {
-      const ll = this.computeLogLikelihood(sampleSize, rss);
-      return k * Math.log(sampleSize) - 2 * ll;
+    // Schwarz Bayesian Information Criterion: BIC = k*ln(n) - 2*ln(L).
+    static computeBIC(sampleSize, rss, paramCount) {
+      const logLikelihood = this.computeLogLikelihood(sampleSize, rss);
+      return paramCount * Math.log(sampleSize) - 2 * logLikelihood;
     }
-    /**
-     * Evaluates statistical metrics and information criteria for a single model on a dataset.
-     */
+    // Computes residual fit metrics and information criteria for one fitted Lorenz model.
     static evaluateModel(dataset, model, parameterCount, modelName = "LorenzModel") {
       const points = dataset.points;
-      const n = points.length;
-      if (n === 0) {
+      const sampleSize = points.length;
+      if (sampleSize === 0) {
         throw new Error("Dataset contains no quantile points.");
       }
       let rss = 0;
       let absoluteErrorSum = 0;
       let meanObserved = 0;
-      for (const pt of points) {
-        meanObserved += pt.incomeShare;
+      for (const knot of points) {
+        meanObserved += knot.incomeShare;
       }
-      meanObserved /= n;
+      meanObserved /= sampleSize;
       let totalSumSquares = 0;
-      for (const pt of points) {
-        const p = pt.populationShare;
-        const actualL = pt.incomeShare;
-        const predictedL = model.evaluate(p);
-        const residual = actualL - predictedL;
+      for (const knot of points) {
+        const percentile = knot.populationShare;
+        const actualShare = knot.incomeShare;
+        const predictedShare = model.evaluate(percentile);
+        const residual = actualShare - predictedShare;
         rss += residual * residual;
         absoluteErrorSum += Math.abs(residual);
-        totalSumSquares += (actualL - meanObserved) * (actualL - meanObserved);
+        totalSumSquares += (actualShare - meanObserved) * (actualShare - meanObserved);
       }
-      const mse = rss / n;
+      const mse = rss / sampleSize;
       const rmse = Math.sqrt(mse);
-      const mae = absoluteErrorSum / n;
+      const mae = absoluteErrorSum / sampleSize;
       const rSquared = totalSumSquares > 0 ? Math.max(0, 1 - rss / totalSumSquares) : 1;
-      const logLikelihood = this.computeLogLikelihood(n, rss);
-      const aic = this.computeAIC(n, rss, parameterCount);
-      const aicc = this.computeAICc(n, rss, parameterCount);
-      const bic = this.computeBIC(n, rss, parameterCount);
+      const logLikelihood = this.computeLogLikelihood(sampleSize, rss);
+      const aic = this.computeAIC(sampleSize, rss, parameterCount);
+      const aicc = this.computeAICc(sampleSize, rss, parameterCount);
+      const bic = this.computeBIC(sampleSize, rss, parameterCount);
       return {
         modelName,
         parameterCount,
-        sampleSize: n,
+        sampleSize,
         rss,
         mse,
         rmse,
@@ -1679,34 +1669,31 @@
         evidenceRatio: 1
       };
     }
-    /**
-     * Compares multiple candidate models on the same dataset,
-     * computing relative delta AICc, Akaike weights, and evidence ratios.
-     */
+    // Ranks candidate models by AICc and computes Akaike weights and evidence ratios.
     static compareModels(dataset, candidates) {
       if (candidates.length === 0) {
         return [];
       }
-      const evaluated = candidates.map(
+      const evaluatedRecords = candidates.map(
         (spec) => this.evaluateModel(dataset, spec.model, spec.parameterCount, spec.name)
       );
       let minAicc = Number.POSITIVE_INFINITY;
-      for (const record of evaluated) {
+      for (const record of evaluatedRecords) {
         if (record.aicc < minAicc) {
           minAicc = record.aicc;
         }
       }
       const relativeLikelihoods = [];
       let sumLikelihoods = 0;
-      for (const record of evaluated) {
+      for (const record of evaluatedRecords) {
         const deltaAicc = record.aicc - minAicc;
         const relLikelihood = Math.exp(-0.5 * deltaAicc);
         relativeLikelihoods.push(relLikelihood);
         sumLikelihoods += relLikelihood;
       }
-      const results = evaluated.map((record, idx) => {
+      const rankedResults = evaluatedRecords.map((record, idx) => {
         const deltaAic = record.aicc - minAicc;
-        const akaikeWeight = sumLikelihoods > 0 ? relativeLikelihoods[idx] / sumLikelihoods : 0;
+        const akaikeWeight = relativeLikelihoods[idx] / sumLikelihoods;
         const evidenceRatio = akaikeWeight > 0 ? 1 / akaikeWeight : Number.POSITIVE_INFINITY;
         return {
           ...record,
@@ -1715,12 +1702,9 @@
           evidenceRatio
         };
       });
-      return results.sort((a, b) => a.deltaAic - b.deltaAic);
+      return rankedResults.sort((a, b) => a.deltaAic - b.deltaAic);
     }
-    /**
-     * Performs adaptive Pareto tail splicing knot (p*) optimization.
-     * Jointly minimizes AICc and curvature discontinuity |ΔL''(p*)| across candidate knots.
-     */
+    // Searches candidate splicing knots p* for the best trade-off between AICc fit and curvature jump.
     static findOptimalKnot(dataset, options = {}) {
       const candidateKnots = options.candidateKnots ?? [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95];
       const curvatureWeight = options.curvatureWeight ?? 2;
@@ -1730,10 +1714,9 @@
       let bestKnot = candidateKnots[0];
       let bestAlpha = 2;
       let minScore = Number.POSITIVE_INFINITY;
-      const n = dataset.points.length;
-      const kHybrid = 2;
+      const sampleSize = dataset.points.length;
+      const hybridParamCount = 2;
       for (const pStar of candidateKnots) {
-        if (pStar <= 0 || pStar >= 1) continue;
         try {
           const hybrid = new HybridLorenzCurve(dataset, {
             bodyModel: baseSpline,
@@ -1742,13 +1725,13 @@
           const alpha = hybrid.getTailAlpha();
           const isAdmissible = alpha > 1 && alpha < 12;
           let rss = 0;
-          for (const pt of dataset.points) {
-            const res = pt.incomeShare - hybrid.evaluate(pt.populationShare);
-            rss += res * res;
+          for (const knot of dataset.points) {
+            const residual = knot.incomeShare - hybrid.evaluate(knot.populationShare);
+            rss += residual * residual;
           }
-          const aic = this.computeAIC(n, rss, kHybrid);
-          const aicc = this.computeAICc(n, rss, kHybrid);
-          const bic = this.computeBIC(n, rss, kHybrid);
+          const aic = this.computeAIC(sampleSize, rss, hybridParamCount);
+          const aicc = this.computeAICc(sampleSize, rss, hybridParamCount);
+          const bic = this.computeBIC(sampleSize, rss, hybridParamCount);
           const splineCurvature = baseSpline.secondDerivative(pStar);
           const hybridCurvature = hybrid.secondDerivative(Math.min(0.9999, pStar + 1e-5));
           const curvatureJump = Math.abs(hybridCurvature - splineCurvature);
@@ -2208,9 +2191,9 @@
   }
 
   // demo/src/tableEditor.ts
-  function renderTable(tableBody2, points, validation, onUpdate, onDelete) {
-    if (!tableBody2) return;
-    tableBody2.innerHTML = "";
+  function renderTable(tableBody, points, validation, onUpdate, onDelete) {
+    if (!tableBody) return;
+    tableBody.innerHTML = "";
     const errorsByRow = /* @__PURE__ */ new Map();
     for (const err of validation.errors) {
       if (!errorsByRow.has(err.rowIndex)) {
@@ -2239,13 +2222,13 @@
       <td class="py-1">
         ${isFirst || isLast ? lockBadge : `<input type="number" step="0.001" min="0" max="1" class="${lClass}" value="${pt.incomeShare.toFixed(4)}" data-idx="${index}" data-field="L">`}
       </td>
-      <td class="text-center py-1" style="width: 38px;">
-        ${isFirst || isLast ? `<span class="text-muted" style="font-size: 0.8rem;">\u{1F512}</span>` : `<button class="btn btn-sm btn-outline-secondary py-0 px-1" data-delete="${index}" title="Remove knot" style="line-height: 1.2;">&times;</button>`}
+      <td class="text-center py-1" style="width: 46px;">
+        ${isFirst || isLast ? `<span class="badge badge-secondary badge-na" title="Anchor boundary fixed">N/A</span>` : `<button class="btn btn-sm btn-outline-secondary py-0 px-1" data-delete="${index}" title="Remove knot" style="line-height: 1.2;">&times;</button>`}
       </td>
     `;
-      tableBody2.appendChild(tr);
+      tableBody.appendChild(tr);
     });
-    tableBody2.oninput = (e) => {
+    tableBody.oninput = (e) => {
       const target = e.target;
       const idx = parseInt(target.getAttribute("data-idx") || "-1", 10);
       const field = target.getAttribute("data-field");
@@ -2254,7 +2237,7 @@
         onUpdate(idx, field, val);
       }
     };
-    tableBody2.onclick = (e) => {
+    tableBody.onclick = (e) => {
       const target = e.target;
       const delIdx = target.getAttribute("data-delete");
       if (delIdx !== null) {
@@ -2262,52 +2245,6 @@
         onDelete(idx);
       }
     };
-  }
-
-  // demo/src/fileIngestion.ts
-  function parseRawContent(text, fileName, meanIncome) {
-    try {
-      const trimmed = text.trim();
-      if (!trimmed) {
-        return { success: false, errorMessage: "Input content is empty." };
-      }
-      let parsed;
-      if (fileName.endsWith(".json") || trimmed.startsWith("{") || trimmed.startsWith("[")) {
-        parsed = DatasetParser.parseJson(trimmed, { name: fileName });
-      } else {
-        parsed = DatasetParser.parseDelimited(trimmed, { name: fileName });
-      }
-      const dataset = DatasetParser.toQuantileDataset(parsed, meanIncome || 1e4);
-      return { success: true, dataset };
-    } catch (err) {
-      return {
-        success: false,
-        errorMessage: err instanceof Error ? err.message : "Failed to parse quantile data."
-      };
-    }
-  }
-  function setupFileInput(fileInput2, getMeanIncome, onResult) {
-    if (!fileInput2) return;
-    fileInput2.addEventListener("change", (e) => {
-      const target = e.target;
-      if (target.files && target.files.length > 0) {
-        const file = target.files[0];
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const text = ev.target?.result;
-          const res = parseRawContent(text, file.name, getMeanIncome());
-          onResult(res);
-          target.value = "";
-        };
-        reader.onerror = () => {
-          onResult({
-            success: false,
-            errorMessage: `Failed to read file ${file.name}.`
-          });
-        };
-        reader.readAsText(file);
-      }
-    });
   }
 
   // demo/src/validation.ts
@@ -2388,7 +2325,7 @@
       warnings
     };
   }
-  function validateEconomicParameters(meanIncome, povertyLine, splicePoint, points) {
+  function validateEconomicParameters(meanIncome, povertyLine, splicePoint) {
     let meanIncomeError = null;
     let povertyLineError = null;
     let povertyLineWarning = null;
@@ -2450,6 +2387,465 @@
     return cleaned;
   }
 
+  // demo/src/domElements.ts
+  function getDemoElements() {
+    return {
+      selectPreset: document.getElementById("selectPreset"),
+      selectModelType: document.getElementById("selectModelType"),
+      rangeSplice: document.getElementById("rangeSplice"),
+      numSplice: document.getElementById("numSplice"),
+      inputMeanIncome: document.getElementById("inputMeanIncome"),
+      inputPoverty: document.getElementById("inputPoverty"),
+      labelCurrency: document.getElementById("labelCurrency"),
+      labelPovertyCurrency: document.getElementById("labelPovertyCurrency"),
+      fileInput: document.getElementById("fileInput"),
+      tableBody: document.getElementById("quantilesTableBody"),
+      btnAddRow: document.getElementById("btnAddRow"),
+      btnAutoRepair: document.getElementById("btnAutoRepair"),
+      btnTogglePaste: document.getElementById("btnTogglePaste"),
+      boxPasteArea: document.getElementById("boxPasteArea"),
+      txtRawInput: document.getElementById("txtRawInput"),
+      btnApplyPaste: document.getElementById("btnApplyPaste"),
+      alertContainer: document.getElementById("alertContainer"),
+      alertContent: document.getElementById("alertContent"),
+      canvasLorenz: document.getElementById("canvasLorenz"),
+      canvasDerivative: document.getElementById("canvasDerivative"),
+      outGini: document.getElementById("outGini"),
+      outGastwirth: document.getElementById("outGastwirth"),
+      outPalma: document.getElementById("outPalma"),
+      outSen: document.getElementById("outSen"),
+      outHeadcount: document.getElementById("outHeadcount"),
+      outAlpha: document.getElementById("outAlpha"),
+      outBenchmarkGini: document.getElementById("outBenchmarkGini"),
+      outErrorGini: document.getElementById("outErrorGini"),
+      outTop1AndElasticity: document.getElementById("outTop1AndElasticity"),
+      outTop10And01: document.getElementById("outTop10And01"),
+      labelBenchmarkGini: document.getElementById("labelBenchmarkGini"),
+      labelErrorGini: document.getElementById("labelErrorGini"),
+      badgeStatus: document.getElementById("badgeStatus"),
+      modelDescription: document.getElementById("modelDescription"),
+      btnAutoSelectKnot: document.getElementById("btnAutoSelectKnot"),
+      badgeOptimalKnot: document.getElementById("badgeOptimalKnot"),
+      modelSelectionTableBody: document.getElementById("modelSelectionTableBody"),
+      badgeBestModel: document.getElementById("badgeBestModel")
+    };
+  }
+
+  // demo/src/metricsRenderer.ts
+  function appendAlertLine(container, label, message) {
+    const row = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = label;
+    row.appendChild(strong);
+    row.appendChild(document.createTextNode(` ${message}`));
+    container.appendChild(row);
+  }
+  function createTableCell(text, className) {
+    const cell = document.createElement("td");
+    cell.className = className;
+    cell.textContent = text;
+    return cell;
+  }
+  function updateModelDescription(el2, state2) {
+    if (!el2.modelDescription) return;
+    if (state2.modelType === "hybrid") {
+      el2.modelDescription.textContent = "Tail-spliced hybrid model: shape-preserving PCHIP body spliced onto an asymptotic Pareto tail with C^1 derivative continuity.";
+    } else if (state2.modelType === "pchip") {
+      el2.modelDescription.textContent = "Shape-preserving piecewise cubic Hermite interpolating polynomial (PCHIP) with harmonic slope weighting and iterative convexity cone projection.";
+    } else {
+      el2.modelDescription.textContent = "Natural C^2 cubic spline: smooth twice-differentiable polynomial solved via Thomas algorithm. May exhibit oscillatory overshoot on coarse data.";
+    }
+  }
+  function collectValidationEntries(state2) {
+    const entries = [];
+    for (const err of state2.validation.errors) {
+      entries.push({ label: "Knot Error:", message: err.message, isError: true });
+    }
+    if (state2.paramValidation.meanIncomeError) {
+      entries.push({
+        label: "Parameter Error:",
+        message: state2.paramValidation.meanIncomeError,
+        isError: true
+      });
+    }
+    if (state2.paramValidation.povertyLineError) {
+      entries.push({
+        label: "Parameter Error:",
+        message: state2.paramValidation.povertyLineError,
+        isError: true
+      });
+    }
+    if (state2.paramValidation.spliceError) {
+      entries.push({
+        label: "Splicing Error:",
+        message: state2.paramValidation.spliceError,
+        isError: true
+      });
+    }
+    for (const warn of state2.validation.warnings) {
+      entries.push({ label: "Warning:", message: warn, isError: false });
+    }
+    if (state2.paramValidation.povertyLineWarning) {
+      entries.push({
+        label: "Notice:",
+        message: state2.paramValidation.povertyLineWarning,
+        isError: false
+      });
+    }
+    return entries;
+  }
+  function setStatusBadge(badge, status, text, title) {
+    if (!badge) return;
+    badge.className = status === "pass" ? "badge badge-dark" : "badge badge-error";
+    badge.textContent = text;
+    if (title) {
+      badge.title = title;
+    } else {
+      badge.removeAttribute("title");
+    }
+  }
+  function renderValidationErrorBadge(el2, state2) {
+    const errors = collectValidationEntries(state2).filter((entry) => entry.isError).map((entry) => entry.message);
+    if (errors.length === 0) {
+      setStatusBadge(el2.badgeStatus, "error", "Validation error");
+      return;
+    }
+    const summary = errors.length === 1 ? errors[0] : `${errors[0]} (+${errors.length - 1} more)`;
+    setStatusBadge(el2.badgeStatus, "error", summary, errors.join("\n"));
+  }
+  function updateAlerts(el2, state2) {
+    if (!el2.alertContainer || !el2.alertContent) return;
+    el2.alertContent.replaceChildren();
+    const entries = collectValidationEntries(state2);
+    if (entries.length > 0) {
+      el2.alertContainer.style.display = "block";
+      for (const entry of entries) {
+        appendAlertLine(el2.alertContent, entry.label, entry.message);
+      }
+    } else {
+      el2.alertContainer.style.display = "none";
+    }
+  }
+  function renderMacroMetrics(el2, state2, metrics) {
+    if (el2.outGini) el2.outGini.textContent = metrics.giniIndex.toFixed(4);
+    if (el2.outGastwirth) {
+      el2.outGastwirth.textContent = `[${state2.currentGastwirth.lowerBound.toFixed(4)}, ${state2.currentGastwirth.upperBound.toFixed(4)}]`;
+    }
+    if (el2.outPalma) {
+      el2.outPalma.textContent = isFinite(metrics.palmaRatio) ? metrics.palmaRatio.toFixed(2) : "N/A";
+    }
+    if (el2.outSen) {
+      el2.outSen.textContent = `${Math.round(metrics.senWelfareIndex).toLocaleString()} ${state2.currency}`;
+    }
+    if (el2.outHeadcount) {
+      el2.outHeadcount.textContent = `${(state2.currentHeadcount * 100).toFixed(1)}%`;
+    }
+    if (el2.outAlpha) {
+      if (state2.modelType === "hybrid" && state2.currentModel instanceof HybridLorenzCurve) {
+        el2.outAlpha.textContent = state2.currentModel.getTailAlpha().toFixed(2);
+      } else {
+        el2.outAlpha.textContent = "N/A";
+      }
+    }
+    if (el2.outBenchmarkGini && el2.labelBenchmarkGini && el2.outErrorGini && el2.labelErrorGini) {
+      if (state2.benchmarkGini !== null) {
+        const trueG = state2.benchmarkGini;
+        const diff = metrics.giniIndex - trueG;
+        const relErr = Math.abs(diff) / trueG * 100;
+        const sign = diff >= 0 ? "+" : "";
+        if (state2.benchmarkType === "synthetic") {
+          el2.labelBenchmarkGini.textContent = "Analytical Gini (G*)";
+          el2.outBenchmarkGini.textContent = `${trueG.toFixed(4)}`;
+          el2.labelErrorGini.textContent = "Estimation Error (|\u0394G|)";
+          el2.outErrorGini.textContent = `${sign}${diff.toFixed(4)} (${relErr.toFixed(2)}%)`;
+        } else {
+          el2.labelBenchmarkGini.textContent = "Official Agency Gini";
+          el2.outBenchmarkGini.textContent = `${trueG.toFixed(4)}`;
+          el2.labelErrorGini.textContent = "Disparity vs Official";
+          el2.outErrorGini.textContent = `${sign}${diff.toFixed(4)} (${relErr.toFixed(2)}%)`;
+        }
+      } else {
+        el2.labelBenchmarkGini.textContent = "Benchmark Ground Truth";
+        el2.outBenchmarkGini.textContent = "N/A (Custom Data)";
+        el2.labelErrorGini.textContent = "Gastwirth Max Error Bound";
+        el2.outErrorGini.textContent = `\xB1${state2.currentGastwirth.maxError.toFixed(4)}`;
+      }
+    }
+    if (el2.outTop1AndElasticity && el2.outTop10And01) {
+      if (metrics.topIncomeShares) {
+        const t1 = (metrics.topIncomeShares.top1PercentShare * 100).toFixed(2);
+        const t10 = (metrics.topIncomeShares.top10PercentShare * 100).toFixed(1);
+        const t01 = (metrics.topIncomeShares.top01PercentShare * 100).toFixed(2);
+        const ez = metrics.povertyElasticities ? metrics.povertyElasticities.elasticityZ.toFixed(2) : "N/A";
+        el2.outTop1AndElasticity.textContent = `${t1}% (\u03B5_z: +${ez})`;
+        el2.outTop10And01.textContent = `${t10}% / ${t01}%`;
+      } else {
+        el2.outTop1AndElasticity.textContent = "\u2014";
+        el2.outTop10And01.textContent = "\u2014";
+      }
+    }
+    if (state2.currentGastwirth.isCertified) {
+      setStatusBadge(el2.badgeStatus, "pass", "Validations Pass");
+    } else {
+      const boundsMsg = `Outside Gastwirth bounds: Gini ${metrics.giniIndex.toFixed(4)} not in [${state2.currentGastwirth.lowerBound.toFixed(4)}, ${state2.currentGastwirth.upperBound.toFixed(4)}]`;
+      setStatusBadge(el2.badgeStatus, "error", boundsMsg, boundsMsg);
+    }
+  }
+  function renderModelSelectionTable(el2, comparison) {
+    if (el2.modelSelectionTableBody) {
+      el2.modelSelectionTableBody.replaceChildren();
+      for (const rec of comparison) {
+        const tr = document.createElement("tr");
+        const isBest = rec.deltaAic === 0;
+        if (isBest) tr.className = "best-model-row";
+        const deltaAicStr = rec.deltaAic === 0 ? "0.00" : `+${rec.deltaAic.toFixed(2)}`;
+        const weightPct = `${(rec.akaikeWeight * 100).toFixed(1)}%`;
+        const evidenceStr = isFinite(rec.evidenceRatio) ? rec.evidenceRatio <= 1.01 ? "1.0\xD7" : `${rec.evidenceRatio.toFixed(1)}\xD7` : "\u2014";
+        const nameCell = document.createElement("td");
+        nameCell.className = "model-name";
+        nameCell.appendChild(document.createTextNode(rec.modelName));
+        if (isBest) {
+          nameCell.appendChild(document.createTextNode(" "));
+          const badge = document.createElement("span");
+          badge.className = "badge badge-secondary ms-1";
+          badge.style.fontSize = "0.62rem";
+          badge.textContent = "Lowest AICc";
+          nameCell.appendChild(badge);
+        }
+        tr.appendChild(nameCell);
+        tr.appendChild(createTableCell(String(rec.parameterCount), "text-center font-monospace"));
+        tr.appendChild(
+          createTableCell(`${(rec.rmse * 1e4).toFixed(2)}\u2031`, "text-end font-monospace")
+        );
+        tr.appendChild(createTableCell(rec.logLikelihood.toFixed(2), "text-end font-monospace"));
+        tr.appendChild(createTableCell(rec.aicc.toFixed(2), "text-end font-monospace"));
+        tr.appendChild(createTableCell(deltaAicStr, "text-end font-monospace"));
+        tr.appendChild(createTableCell(weightPct, "text-end font-monospace"));
+        tr.appendChild(createTableCell(evidenceStr, "text-end font-monospace"));
+        el2.modelSelectionTableBody.appendChild(tr);
+      }
+    }
+    if (el2.badgeBestModel && comparison.length > 0) {
+      const best = comparison[0];
+      el2.badgeBestModel.textContent = `Lowest In-Sample AICc: ${best.modelName} (w\u1D62 = ${(best.akaikeWeight * 100).toFixed(1)}%)`;
+    }
+  }
+
+  // demo/src/fileIngestion.ts
+  function parseRawContent(text, fileName, meanIncome) {
+    try {
+      const trimmed = text.trim();
+      if (!trimmed) {
+        return { success: false, errorMessage: "Input content is empty." };
+      }
+      let parsed;
+      if (fileName.endsWith(".json") || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        parsed = DatasetParser.parseJson(trimmed, { name: fileName });
+      } else {
+        parsed = DatasetParser.parseDelimited(trimmed, { name: fileName });
+      }
+      const dataset = DatasetParser.toQuantileDataset(parsed, meanIncome || 1e4);
+      return { success: true, dataset };
+    } catch (err) {
+      return {
+        success: false,
+        errorMessage: err instanceof Error ? err.message : "Failed to parse quantile data."
+      };
+    }
+  }
+  function setupFileInput(fileInput, getMeanIncome, onResult) {
+    if (!fileInput) return;
+    fileInput.addEventListener("change", (e) => {
+      const target = e.target;
+      if (target.files && target.files.length > 0) {
+        const file = target.files[0];
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const text = ev.target?.result;
+          const res = parseRawContent(text, file.name, getMeanIncome());
+          onResult(res);
+          target.value = "";
+        };
+        reader.onerror = () => {
+          onResult({
+            success: false,
+            errorMessage: `Failed to read file ${file.name}.`
+          });
+        };
+        reader.readAsText(file);
+      }
+    });
+  }
+
+  // demo/src/eventHandlers.ts
+  function bindDemoEvents(el2, state2, cb) {
+    if (el2.selectPreset) {
+      const onPreset = () => cb.applyPreset(el2.selectPreset.value);
+      el2.selectPreset.addEventListener("change", onPreset);
+      el2.selectPreset.addEventListener("input", onPreset);
+    }
+    if (el2.selectModelType) {
+      el2.selectModelType.addEventListener("change", (e) => {
+        state2.modelType = e.target.value;
+        cb.recompute();
+      });
+    }
+    if (el2.rangeSplice) {
+      const onRangeSplice = (e) => {
+        cb.clearOptimalKnotBadge();
+        cb.syncSplicingThreshold(parseFloat(e.target.value));
+      };
+      el2.rangeSplice.addEventListener("input", onRangeSplice);
+      el2.rangeSplice.addEventListener("change", onRangeSplice);
+    }
+    if (el2.numSplice) {
+      const onNumSplice = (e) => {
+        cb.clearOptimalKnotBadge();
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val)) cb.syncSplicingThreshold(val);
+      };
+      el2.numSplice.addEventListener("input", onNumSplice);
+      el2.numSplice.addEventListener("change", onNumSplice);
+    }
+    if (el2.inputPoverty) {
+      const onPoverty = (e) => {
+        const val = parseFloat(e.target.value);
+        state2.povertyLine = isNaN(val) ? 0 : val;
+        cb.recompute();
+      };
+      el2.inputPoverty.addEventListener("input", onPoverty);
+      el2.inputPoverty.addEventListener("change", onPoverty);
+    }
+    if (el2.inputMeanIncome) {
+      const onMean = (e) => {
+        const val = parseFloat(e.target.value);
+        state2.dataset.meanIncome = isNaN(val) ? 0 : val;
+        cb.recompute();
+      };
+      el2.inputMeanIncome.addEventListener("input", onMean);
+      el2.inputMeanIncome.addEventListener("change", onMean);
+    }
+    if (el2.btnAddRow) {
+      el2.btnAddRow.addEventListener("click", () => {
+        const pts = state2.dataset.points;
+        const lastSec = pts[pts.length - 2];
+        const newP = lastSec ? Math.min(0.95, (lastSec.populationShare + 1) / 2) : 0.5;
+        const newL = lastSec ? Math.min(0.95, (lastSec.incomeShare + 1) / 2) : 0.5;
+        pts.splice(pts.length - 1, 0, { populationShare: newP, incomeShare: newL });
+        pts.sort((a, b) => a.populationShare - b.populationShare);
+        cb.updateTable();
+        cb.recompute();
+      });
+    }
+    if (el2.btnAutoRepair) {
+      el2.btnAutoRepair.addEventListener("click", () => {
+        state2.dataset.points = autoRepairQuantiles(state2.dataset.points);
+        if (isNaN(state2.splicingThreshold) || state2.splicingThreshold < 0.6 || state2.splicingThreshold > 0.95) {
+          cb.syncSplicingThreshold(0.8);
+        }
+        if (isNaN(state2.dataset.meanIncome) || state2.dataset.meanIncome <= 0) {
+          const defaultMean = 5032;
+          state2.dataset.meanIncome = defaultMean;
+          if (el2.inputMeanIncome) {
+            el2.inputMeanIncome.value = String(defaultMean);
+            el2.inputMeanIncome.setAttribute("value", String(defaultMean));
+          }
+        }
+        if (isNaN(state2.povertyLine) || state2.povertyLine <= 0) {
+          const defaultPov = 3092;
+          state2.povertyLine = defaultPov;
+          if (el2.inputPoverty) {
+            el2.inputPoverty.value = String(defaultPov);
+            el2.inputPoverty.setAttribute("value", String(defaultPov));
+          }
+        }
+        cb.updateTable();
+        cb.recompute();
+        const btn = el2.btnAutoRepair;
+        const origText = btn.textContent || "Auto-Repair Knots";
+        btn.textContent = "\u2713 Repaired";
+        btn.classList.add("btn-outline-light");
+        btn.classList.remove("btn-dark");
+        setTimeout(() => {
+          btn.textContent = origText;
+          btn.classList.remove("btn-outline-light");
+          btn.classList.add("btn-dark");
+        }, 1200);
+      });
+    }
+    if (el2.btnTogglePaste && el2.boxPasteArea) {
+      el2.btnTogglePaste.addEventListener("click", () => {
+        const isHidden = el2.boxPasteArea.style.display === "none";
+        el2.boxPasteArea.style.display = isHidden ? "block" : "none";
+        el2.btnTogglePaste.textContent = isHidden ? "Close Text Paste" : "Paste Raw Text";
+      });
+    }
+    if (el2.btnApplyPaste && el2.txtRawInput) {
+      el2.btnApplyPaste.addEventListener("click", () => {
+        const res = parseRawContent(
+          el2.txtRawInput.value,
+          "manual_entry.csv",
+          state2.dataset.meanIncome || 1e4
+        );
+        if (res.success && res.dataset) {
+          state2.dataset = {
+            meanIncome: res.dataset.meanIncome,
+            points: res.dataset.points.map((pt) => ({ ...pt }))
+          };
+          state2.benchmarkGini = null;
+          state2.benchmarkLabel = null;
+          state2.benchmarkType = null;
+          if (el2.boxPasteArea) el2.boxPasteArea.style.display = "none";
+          if (el2.btnTogglePaste) el2.btnTogglePaste.textContent = "Paste Raw Text";
+          cb.updateTable();
+          cb.recompute();
+        } else {
+          alert("Failed to parse content: " + (res.errorMessage || "Unknown error."));
+        }
+      });
+    }
+    setupFileInput(
+      el2.fileInput,
+      () => state2.dataset.meanIncome || 1e4,
+      (res) => {
+        if (res.success && res.dataset) {
+          state2.dataset = {
+            meanIncome: res.dataset.meanIncome,
+            points: res.dataset.points.map((pt) => ({ ...pt }))
+          };
+          state2.benchmarkGini = null;
+          state2.benchmarkLabel = null;
+          state2.benchmarkType = null;
+          cb.updateTable();
+          cb.recompute();
+        } else {
+          alert("File error: " + (res.errorMessage || "Could not read data."));
+        }
+      }
+    );
+    if (el2.btnAutoSelectKnot) {
+      el2.btnAutoSelectKnot.addEventListener("click", () => {
+        try {
+          const msResult = evaluateModelSelection(state2);
+          const optKnot = msResult.knotOptimization.optimalKnot;
+          cb.syncSplicingThreshold(optKnot);
+          if (el2.badgeOptimalKnot) {
+            el2.badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} (Score: ${msResult.knotOptimization.minScore.toFixed(1)}, \u03B1: ${msResult.knotOptimization.optimalAlpha.toFixed(2)})`;
+            el2.badgeOptimalKnot.style.display = "inline-block";
+          }
+          cb.recompute();
+        } catch (optErr) {
+          console.error("Auto knot selection failed:", optErr);
+          cb.clearOptimalKnotBadge();
+        }
+      });
+    }
+    window.addEventListener("resize", () => {
+      renderLorenzChart(el2.canvasLorenz, state2);
+      renderDerivativeChart(el2.canvasDerivative, state2);
+    });
+  }
+
   // demo/src/main.ts
   var initialPreset = loadPreset("bg_nsi_2022");
   var state = {
@@ -2483,73 +2879,20 @@
     benchmarkLabel: initialPreset.benchmarkLabel,
     benchmarkType: initialPreset.benchmarkType
   };
-  var selectPreset = document.getElementById("selectPreset");
-  var selectModelType = document.getElementById("selectModelType");
-  var rangeSplice = document.getElementById("rangeSplice");
-  var numSplice = document.getElementById("numSplice");
-  var inputMeanIncome = document.getElementById("inputMeanIncome");
-  var inputPoverty = document.getElementById("inputPoverty");
-  var labelCurrency = document.getElementById("labelCurrency");
-  var labelPovertyCurrency = document.getElementById("labelPovertyCurrency");
-  var fileInput = document.getElementById("fileInput");
-  var tableBody = document.getElementById("quantilesTableBody");
-  var btnAddRow = document.getElementById("btnAddRow");
-  var btnAutoRepair = document.getElementById("btnAutoRepair");
-  var btnTogglePaste = document.getElementById("btnTogglePaste");
-  var boxPasteArea = document.getElementById("boxPasteArea");
-  var txtRawInput = document.getElementById("txtRawInput");
-  var btnApplyPaste = document.getElementById("btnApplyPaste");
-  var alertContainer = document.getElementById("alertContainer");
-  var alertContent = document.getElementById("alertContent");
-  var canvasLorenz = document.getElementById("canvasLorenz");
-  var canvasDerivative = document.getElementById("canvasDerivative");
-  var outGini = document.getElementById("outGini");
-  var outGastwirth = document.getElementById("outGastwirth");
-  var outPalma = document.getElementById("outPalma");
-  var outSen = document.getElementById("outSen");
-  var outHeadcount = document.getElementById("outHeadcount");
-  var outAlpha = document.getElementById("outAlpha");
-  var outBenchmarkGini = document.getElementById("outBenchmarkGini");
-  var outErrorGini = document.getElementById("outErrorGini");
-  var outTop1AndElasticity = document.getElementById("outTop1AndElasticity");
-  var outTop10And01 = document.getElementById("outTop10And01");
-  var labelBenchmarkGini = document.getElementById("labelBenchmarkGini");
-  var labelErrorGini = document.getElementById("labelErrorGini");
-  var badgeStatus = document.getElementById("badgeStatus");
-  var modelDescription = document.getElementById("modelDescription");
-  var btnAutoSelectKnot = document.getElementById("btnAutoSelectKnot");
-  var badgeOptimalKnot = document.getElementById("badgeOptimalKnot");
-  var modelSelectionTableBody = document.getElementById(
-    "modelSelectionTableBody"
-  );
-  var badgeBestModel = document.getElementById("badgeBestModel");
-  function updateModelDescription() {
-    if (!modelDescription) return;
-    if (state.modelType === "hybrid") {
-      modelDescription.textContent = "Tail-spliced hybrid model: shape-preserving PCHIP body spliced onto an asymptotic Pareto tail with C^1 derivative continuity.";
-    } else if (state.modelType === "pchip") {
-      modelDescription.textContent = "Shape-preserving piecewise cubic Hermite interpolating polynomial (PCHIP) with harmonic slope weighting and iterative convexity cone projection.";
-    } else {
-      modelDescription.textContent = "Natural C^2 cubic spline: smooth twice-differentiable polynomial solved via Thomas algorithm. May exhibit oscillatory overshoot on coarse data.";
-    }
-  }
+  var el = getDemoElements();
   function recompute() {
     state.validation = validateQuantilePoints(state.dataset.points);
     state.paramValidation = validateEconomicParameters(
       state.dataset.meanIncome || 1e4,
       state.povertyLine,
-      state.splicingThreshold,
-      state.dataset.points
+      state.splicingThreshold
     );
-    updateAlerts();
-    updateModelDescription();
+    updateAlerts(el, state);
+    updateModelDescription(el, state);
     if (!state.validation.isValid || !state.paramValidation.isValid) {
-      if (badgeStatus) {
-        badgeStatus.className = "badge badge-dark border border-dark text-white";
-        badgeStatus.textContent = "Validation Issue";
-      }
-      renderLorenzChart(canvasLorenz, state);
-      renderDerivativeChart(canvasDerivative, state);
+      renderValidationErrorBadge(el, state);
+      renderLorenzChart(el.canvasLorenz, state);
+      renderDerivativeChart(el.canvasDerivative, state);
       return;
     }
     try {
@@ -2557,140 +2900,24 @@
       state.currentModel = result.model;
       state.currentGastwirth = result.metrics.gastwirthCertificate;
       state.currentHeadcount = result.metrics.povertyHeadcount ?? 0;
-      if (outGini) outGini.textContent = result.metrics.giniIndex.toFixed(4);
-      if (outGastwirth) {
-        outGastwirth.textContent = `[${state.currentGastwirth.lowerBound.toFixed(4)}, ${state.currentGastwirth.upperBound.toFixed(4)}]`;
-      }
-      if (outPalma) {
-        outPalma.textContent = isFinite(result.metrics.palmaRatio) ? result.metrics.palmaRatio.toFixed(2) : "N/A";
-      }
-      if (outSen) {
-        outSen.textContent = `${Math.round(result.metrics.senWelfareIndex).toLocaleString()} ${state.currency}`;
-      }
-      if (outHeadcount) {
-        outHeadcount.textContent = `${(state.currentHeadcount * 100).toFixed(1)}%`;
-      }
-      if (outAlpha) {
-        if (state.modelType === "hybrid" && state.currentModel instanceof HybridLorenzCurve) {
-          outAlpha.textContent = state.currentModel.getTailAlpha().toFixed(2);
-        } else {
-          outAlpha.textContent = "N/A";
-        }
-      }
-      if (outBenchmarkGini && labelBenchmarkGini && outErrorGini && labelErrorGini) {
-        if (state.benchmarkGini !== null) {
-          const trueG = state.benchmarkGini;
-          const diff = result.metrics.giniIndex - trueG;
-          const relErr = Math.abs(diff) / trueG * 100;
-          const sign = diff >= 0 ? "+" : "";
-          if (state.benchmarkType === "synthetic") {
-            labelBenchmarkGini.textContent = "Analytical Gini (G*)";
-            outBenchmarkGini.textContent = `${trueG.toFixed(4)}`;
-            labelErrorGini.textContent = "Estimation Error (|\u0394G|)";
-            outErrorGini.textContent = `${sign}${diff.toFixed(4)} (${relErr.toFixed(2)}%)`;
-          } else {
-            labelBenchmarkGini.textContent = "Official Agency Gini";
-            outBenchmarkGini.textContent = `${trueG.toFixed(4)}`;
-            labelErrorGini.textContent = "Disparity vs Official";
-            outErrorGini.textContent = `${sign}${diff.toFixed(4)} (${relErr.toFixed(2)}%)`;
-          }
-        } else {
-          labelBenchmarkGini.textContent = "Benchmark Ground Truth";
-          outBenchmarkGini.textContent = "N/A (Custom Data)";
-          labelErrorGini.textContent = "Gastwirth Max Error Bound";
-          outErrorGini.textContent = `\xB1${state.currentGastwirth.maxError.toFixed(4)}`;
-        }
-      }
-      if (outTop1AndElasticity && outTop10And01) {
-        if (result.metrics.topIncomeShares) {
-          const t1 = (result.metrics.topIncomeShares.top1PercentShare * 100).toFixed(2);
-          const t10 = (result.metrics.topIncomeShares.top10PercentShare * 100).toFixed(1);
-          const t01 = (result.metrics.topIncomeShares.top01PercentShare * 100).toFixed(2);
-          const ez = result.metrics.povertyElasticities ? result.metrics.povertyElasticities.elasticityZ.toFixed(2) : "N/A";
-          outTop1AndElasticity.textContent = `${t1}% (\u03B5_z: +${ez})`;
-          outTop10And01.textContent = `${t10}% / ${t01}%`;
-        } else {
-          outTop1AndElasticity.textContent = "\u2014";
-          outTop10And01.textContent = "\u2014";
-        }
-      }
-      if (badgeStatus) {
-        badgeStatus.className = "badge badge-dark";
-        badgeStatus.textContent = state.currentGastwirth.isCertified ? "Certified [G_L, G_U]" : "Verified";
-      }
+      renderMacroMetrics(el, state, result.metrics);
       try {
         const msResult = evaluateModelSelection(state);
-        if (modelSelectionTableBody) {
-          modelSelectionTableBody.innerHTML = "";
-          for (const rec of msResult.comparison) {
-            const tr = document.createElement("tr");
-            const isBest = rec.deltaAic === 0;
-            if (isBest) tr.className = "best-model-row";
-            const deltaAicStr = rec.deltaAic === 0 ? "0.00" : `+${rec.deltaAic.toFixed(2)}`;
-            const weightPct = `${(rec.akaikeWeight * 100).toFixed(1)}%`;
-            const evidenceStr = isFinite(rec.evidenceRatio) ? rec.evidenceRatio <= 1.01 ? "1.0\xD7" : `${rec.evidenceRatio.toFixed(1)}\xD7` : "\u2014";
-            tr.innerHTML = `
-            <td class="model-name">${rec.modelName} ${isBest ? '<span class="badge badge-secondary ms-1" style="font-size:0.62rem">Lowest AICc</span>' : ""}</td>
-            <td class="text-center font-monospace">${rec.parameterCount}</td>
-            <td class="text-end font-monospace">${(rec.rmse * 1e4).toFixed(2)}\u2031</td>
-            <td class="text-end font-monospace">${rec.logLikelihood.toFixed(2)}</td>
-            <td class="text-end font-monospace">${rec.aicc.toFixed(2)}</td>
-            <td class="text-end font-monospace">${deltaAicStr}</td>
-            <td class="text-end font-monospace">${weightPct}</td>
-            <td class="text-end font-monospace">${evidenceStr}</td>
-          `;
-            modelSelectionTableBody.appendChild(tr);
-          }
-        }
-        if (badgeBestModel && msResult.comparison.length > 0) {
-          const best = msResult.comparison[0];
-          badgeBestModel.textContent = `Lowest In-Sample AICc: ${best.modelName} (w\u1D62 = ${(best.akaikeWeight * 100).toFixed(1)}%)`;
-        }
+        renderModelSelectionTable(el, msResult.comparison);
       } catch (msErr) {
         console.warn("Model selection evaluation warning:", msErr);
       }
-      renderLorenzChart(canvasLorenz, state);
-      renderDerivativeChart(canvasDerivative, state);
+      renderLorenzChart(el.canvasLorenz, state);
+      renderDerivativeChart(el.canvasDerivative, state);
     } catch (err) {
       console.error("Recompute error:", err);
-      if (badgeStatus) {
-        badgeStatus.className = "badge badge-secondary";
-        badgeStatus.textContent = "Solver Error";
-      }
-    }
-  }
-  function updateAlerts() {
-    if (!alertContainer || !alertContent) return;
-    const messages = [];
-    for (const err of state.validation.errors) {
-      messages.push(`<strong>Knot Error:</strong> ${err.message}`);
-    }
-    if (state.paramValidation.meanIncomeError) {
-      messages.push(`<strong>Parameter Error:</strong> ${state.paramValidation.meanIncomeError}`);
-    }
-    if (state.paramValidation.povertyLineError) {
-      messages.push(`<strong>Parameter Error:</strong> ${state.paramValidation.povertyLineError}`);
-    }
-    if (state.paramValidation.spliceError) {
-      messages.push(`<strong>Splicing Error:</strong> ${state.paramValidation.spliceError}`);
-    }
-    for (const warn of state.validation.warnings) {
-      messages.push(`<strong>Warning:</strong> ${warn}`);
-    }
-    if (state.paramValidation.povertyLineWarning) {
-      messages.push(`<strong>Notice:</strong> ${state.paramValidation.povertyLineWarning}`);
-    }
-    if (messages.length > 0) {
-      alertContainer.style.display = "block";
-      alertContent.innerHTML = messages.map((m) => `<div>${m}</div>`).join("");
-    } else {
-      alertContainer.style.display = "none";
-      alertContent.innerHTML = "";
+      const errMsg = err instanceof Error ? err.message : "Solver Error";
+      setStatusBadge(el.badgeStatus, "error", errMsg, errMsg);
     }
   }
   function updateTable() {
     renderTable(
-      tableBody,
+      el.tableBody,
       state.dataset.points,
       state.validation,
       (index, field, val) => {
@@ -2711,21 +2938,24 @@
     const clamped = Math.max(0.6, Math.min(0.95, isNaN(val) ? 0.8 : val));
     state.splicingThreshold = clamped;
     const formatted = clamped.toFixed(2);
-    if (rangeSplice) {
-      rangeSplice.value = formatted;
-      rangeSplice.setAttribute("value", formatted);
+    if (el.rangeSplice) {
+      el.rangeSplice.value = formatted;
+      el.rangeSplice.setAttribute("value", formatted);
     }
-    if (numSplice) {
-      numSplice.value = formatted;
-      numSplice.setAttribute("value", formatted);
+    if (el.numSplice) {
+      el.numSplice.value = formatted;
+      el.numSplice.setAttribute("value", formatted);
     }
     recompute();
   }
-  function applyPreset(key) {
-    if (badgeOptimalKnot) {
-      badgeOptimalKnot.style.display = "none";
-      badgeOptimalKnot.textContent = "";
+  function clearOptimalKnotBadge() {
+    if (el.badgeOptimalKnot) {
+      el.badgeOptimalKnot.style.display = "none";
+      el.badgeOptimalKnot.textContent = "";
     }
+  }
+  function applyPreset(key) {
+    clearOptimalKnotBadge();
     const loaded = loadPreset(key);
     state.dataset = {
       meanIncome: loaded.dataset.meanIncome,
@@ -2738,211 +2968,40 @@
     state.benchmarkType = loaded.benchmarkType;
     const meanVal = String(Math.round(state.dataset.meanIncome || 1e4));
     const povVal = String(Math.round(state.povertyLine));
-    if (inputMeanIncome) {
-      inputMeanIncome.value = meanVal;
-      inputMeanIncome.setAttribute("value", meanVal);
+    if (el.inputMeanIncome) {
+      el.inputMeanIncome.value = meanVal;
+      el.inputMeanIncome.setAttribute("value", meanVal);
     }
-    if (inputPoverty) {
-      inputPoverty.value = povVal;
-      inputPoverty.setAttribute("value", povVal);
+    if (el.inputPoverty) {
+      el.inputPoverty.value = povVal;
+      el.inputPoverty.setAttribute("value", povVal);
     }
-    if (labelCurrency) labelCurrency.textContent = state.currency;
-    if (labelPovertyCurrency) labelPovertyCurrency.textContent = state.currency;
+    if (el.labelCurrency) el.labelCurrency.textContent = state.currency;
+    if (el.labelPovertyCurrency) el.labelPovertyCurrency.textContent = state.currency;
     const pts = state.dataset.points;
     if (pts.length >= 3) {
-      const highestInterior = pts[pts.length - 2].populationShare;
-      syncSplicingThreshold(highestInterior);
+      syncSplicingThreshold(pts[pts.length - 2].populationShare);
     }
     updateTable();
     recompute();
   }
-  if (selectPreset) {
-    const onPreset = () => applyPreset(selectPreset.value);
-    selectPreset.addEventListener("change", onPreset);
-    selectPreset.addEventListener("input", onPreset);
-  }
-  if (selectModelType) {
-    selectModelType.addEventListener("change", (e) => {
-      state.modelType = e.target.value;
-      recompute();
-    });
-  }
-  if (rangeSplice) {
-    rangeSplice.addEventListener("input", (e) => {
-      if (badgeOptimalKnot) {
-        badgeOptimalKnot.style.display = "none";
-        badgeOptimalKnot.textContent = "";
-      }
-      const val = parseFloat(e.target.value);
-      syncSplicingThreshold(val);
-    });
-    rangeSplice.addEventListener("change", (e) => {
-      if (badgeOptimalKnot) {
-        badgeOptimalKnot.style.display = "none";
-        badgeOptimalKnot.textContent = "";
-      }
-      const val = parseFloat(e.target.value);
-      syncSplicingThreshold(val);
-    });
-  }
-  if (numSplice) {
-    numSplice.addEventListener("input", (e) => {
-      if (badgeOptimalKnot) {
-        badgeOptimalKnot.style.display = "none";
-        badgeOptimalKnot.textContent = "";
-      }
-      const val = parseFloat(e.target.value);
-      if (!isNaN(val)) syncSplicingThreshold(val);
-    });
-    numSplice.addEventListener("change", (e) => {
-      if (badgeOptimalKnot) {
-        badgeOptimalKnot.style.display = "none";
-        badgeOptimalKnot.textContent = "";
-      }
-      const val = parseFloat(e.target.value);
-      if (!isNaN(val)) syncSplicingThreshold(val);
-    });
-  }
-  if (inputPoverty) {
-    const onPoverty = (e) => {
-      const val = parseFloat(e.target.value);
-      state.povertyLine = isNaN(val) ? 0 : val;
-      recompute();
-    };
-    inputPoverty.addEventListener("input", onPoverty);
-    inputPoverty.addEventListener("change", onPoverty);
-  }
-  if (inputMeanIncome) {
-    const onMean = (e) => {
-      const val = parseFloat(e.target.value);
-      state.dataset.meanIncome = isNaN(val) ? 0 : val;
-      recompute();
-    };
-    inputMeanIncome.addEventListener("input", onMean);
-    inputMeanIncome.addEventListener("change", onMean);
-  }
-  if (btnAddRow) {
-    btnAddRow.addEventListener("click", () => {
-      const pts = state.dataset.points;
-      const lastSec = pts[pts.length - 2];
-      const newP = lastSec ? Math.min(0.95, (lastSec.populationShare + 1) / 2) : 0.5;
-      const newL = lastSec ? Math.min(0.95, (lastSec.incomeShare + 1) / 2) : 0.5;
-      pts.splice(pts.length - 1, 0, { populationShare: newP, incomeShare: newL });
-      pts.sort((a, b) => a.populationShare - b.populationShare);
-      updateTable();
-      recompute();
-    });
-  }
-  if (btnAutoRepair) {
-    btnAutoRepair.addEventListener("click", () => {
-      state.dataset.points = autoRepairQuantiles(state.dataset.points);
-      if (isNaN(state.splicingThreshold) || state.splicingThreshold < 0.6 || state.splicingThreshold > 0.95) {
-        syncSplicingThreshold(0.8);
-      }
-      if (isNaN(state.dataset.meanIncome) || state.dataset.meanIncome <= 0) {
-        const defaultMean = 5032;
-        state.dataset.meanIncome = defaultMean;
-        if (inputMeanIncome) {
-          inputMeanIncome.value = String(defaultMean);
-          inputMeanIncome.setAttribute("value", String(defaultMean));
-        }
-      }
-      if (isNaN(state.povertyLine) || state.povertyLine <= 0) {
-        const defaultPov = 3092;
-        state.povertyLine = defaultPov;
-        if (inputPoverty) {
-          inputPoverty.value = String(defaultPov);
-          inputPoverty.setAttribute("value", String(defaultPov));
-        }
-      }
-      updateTable();
-      recompute();
-      const origText = btnAutoRepair.textContent || "Auto-Repair Knots";
-      btnAutoRepair.textContent = "\u2713 Repaired";
-      btnAutoRepair.classList.add("btn-outline-light");
-      btnAutoRepair.classList.remove("btn-dark");
-      setTimeout(() => {
-        btnAutoRepair.textContent = origText;
-        btnAutoRepair.classList.remove("btn-outline-light");
-        btnAutoRepair.classList.add("btn-dark");
-      }, 1200);
-    });
-  }
-  if (btnTogglePaste && boxPasteArea) {
-    btnTogglePaste.addEventListener("click", () => {
-      const isHidden = boxPasteArea.style.display === "none";
-      boxPasteArea.style.display = isHidden ? "block" : "none";
-      btnTogglePaste.textContent = isHidden ? "Close Text Paste" : "Paste Raw Text";
-    });
-  }
-  if (btnApplyPaste && txtRawInput) {
-    btnApplyPaste.addEventListener("click", () => {
-      const content = txtRawInput.value;
-      const res = parseRawContent(content, "manual_entry.csv", state.dataset.meanIncome || 1e4);
-      if (res.success && res.dataset) {
-        state.dataset = res.dataset;
-        state.benchmarkGini = null;
-        state.benchmarkLabel = null;
-        state.benchmarkType = null;
-        if (boxPasteArea) boxPasteArea.style.display = "none";
-        if (btnTogglePaste) btnTogglePaste.textContent = "Paste Raw Text";
-        updateTable();
-        recompute();
-      } else {
-        alert("Failed to parse content: " + (res.errorMessage || "Unknown error."));
-      }
-    });
-  }
-  setupFileInput(
-    fileInput,
-    () => state.dataset.meanIncome || 1e4,
-    (res) => {
-      if (res.success && res.dataset) {
-        state.dataset = res.dataset;
-        state.benchmarkGini = null;
-        state.benchmarkLabel = null;
-        state.benchmarkType = null;
-        updateTable();
-        recompute();
-      } else {
-        alert("File error: " + (res.errorMessage || "Could not read data."));
-      }
-    }
-  );
-  if (btnAutoSelectKnot) {
-    btnAutoSelectKnot.addEventListener("click", () => {
-      try {
-        const msResult = evaluateModelSelection(state);
-        const optKnot = msResult.knotOptimization.optimalKnot;
-        syncSplicingThreshold(optKnot);
-        if (badgeOptimalKnot) {
-          badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} (Score: ${msResult.knotOptimization.minScore.toFixed(1)}, \u03B1: ${msResult.knotOptimization.alpha.toFixed(2)})`;
-          badgeOptimalKnot.style.display = "inline-block";
-        }
-        recompute();
-      } catch (optErr) {
-        console.error("Auto knot selection failed:", optErr);
-        if (badgeOptimalKnot) {
-          badgeOptimalKnot.style.display = "none";
-          badgeOptimalKnot.textContent = "";
-        }
-      }
-    });
-  }
-  window.addEventListener("resize", () => {
-    renderLorenzChart(canvasLorenz, state);
-    renderDerivativeChart(canvasDerivative, state);
+  bindDemoEvents(el, state, {
+    recompute,
+    updateTable,
+    syncSplicingThreshold,
+    applyPreset,
+    clearOptimalKnotBadge
   });
-  if (selectPreset && selectPreset.value) {
-    applyPreset(selectPreset.value);
+  if (el.selectPreset && el.selectPreset.value) {
+    applyPreset(el.selectPreset.value);
   } else {
     applyPreset("bg_nsi_2022");
   }
   syncSplicingThreshold(state.splicingThreshold);
   if (typeof document !== "undefined") {
     const initUI = () => {
-      if (selectPreset && selectPreset.value) {
-        applyPreset(selectPreset.value);
+      if (el.selectPreset && el.selectPreset.value) {
+        applyPreset(el.selectPreset.value);
       }
       syncSplicingThreshold(state.splicingThreshold);
     };

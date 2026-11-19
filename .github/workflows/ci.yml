@@ -36,8 +36,11 @@ jobs:
       - name: Check code formatting
         run: npm run format:check
 
-      - name: Run unit test suite
-        run: npm run test
+      - name: Run unit test suite with 100% coverage enforcement
+        run: npm run test:coverage
 
       - name: Build distribution bundle
         run: npm run build
+
+      - name: Build demo bundle
+        run: npm run build:demo

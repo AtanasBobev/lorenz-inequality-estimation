@@ -2,6 +2,7 @@ import { LorenzModel } from "../core/LorenzModel.js";
 import { RootFinder } from "../core/RootFinder.js";
 import { RootResult } from "../core/types.js";
 
+// Bracketing bisection root finder with guaranteed linear convergence on continuous intervals
 export class BisectionSolver implements RootFinder {
   public readonly name = "Bisection Method";
 
@@ -12,67 +13,68 @@ export class BisectionSolver implements RootFinder {
     tolerance: number = 1e-8,
     maxIterations: number = 100
   ): RootResult {
-    let a = lowerBound;
-    let b = upperBound;
-    let fa = fn(a);
-    let fb = fn(b);
+    let leftBound = lowerBound;
+    let rightBound = upperBound;
+    let fLeft = fn(leftBound);
+    const fRight = fn(rightBound);
 
-    if (Math.abs(fa) <= tolerance) {
+    if (Math.abs(fLeft) <= tolerance) {
       return {
-        root: a,
-        populationPercentile: a,
+        root: leftBound,
+        populationPercentile: leftBound,
         iterations: 0,
         converged: true,
-        finalError: Math.abs(fa)
+        finalError: Math.abs(fLeft)
       };
     }
-    if (Math.abs(fb) <= tolerance) {
+    if (Math.abs(fRight) <= tolerance) {
       return {
-        root: b,
-        populationPercentile: b,
+        root: rightBound,
+        populationPercentile: rightBound,
         iterations: 0,
         converged: true,
-        finalError: Math.abs(fb)
+        finalError: Math.abs(fRight)
       };
     }
 
-    if (fa * fb > 0) {
-      throw new Error(`Root is not bracketed: f(${a})=${fa} and f(${b})=${fb} have the same sign.`);
+    if (fLeft * fRight > 0) {
+      throw new Error(
+        `Root is not bracketed: f(${leftBound})=${fLeft} and f(${rightBound})=${fRight} have the same sign.`
+      );
     }
 
-    let mid = a;
-    let fmid = fa;
+    let midpoint = leftBound;
+    let fMid = fLeft;
 
     for (let iter = 1; iter <= maxIterations; iter++) {
-      mid = a + (b - a) / 2;
-      fmid = fn(mid);
+      midpoint = leftBound + (rightBound - leftBound) / 2;
+      fMid = fn(midpoint);
 
-      const halfInterval = (b - a) / 2;
-      if (Math.abs(fmid) <= tolerance || halfInterval <= tolerance) {
+      const halfInterval = (rightBound - leftBound) / 2;
+      if (Math.abs(fMid) <= tolerance || halfInterval <= tolerance) {
         return {
-          root: mid,
-          populationPercentile: mid,
+          root: midpoint,
+          populationPercentile: midpoint,
           iterations: iter,
           converged: true,
-          finalError: Math.abs(fmid)
+          finalError: Math.abs(fMid)
         };
       }
 
-      if (fa * fmid < 0) {
-        b = mid;
-        fb = fmid;
+      if (fLeft * fMid < 0) {
+        rightBound = midpoint;
       } else {
-        a = mid;
-        fa = fmid;
+        leftBound = midpoint;
+        fLeft = fMid;
       }
     }
 
     return {
-      root: mid,
-      populationPercentile: mid,
+      root: midpoint,
+      populationPercentile: midpoint,
       iterations: maxIterations,
       converged: false,
-      finalError: Math.abs(fmid)
+      finalError: Math.abs(fMid)
     };
   }
 

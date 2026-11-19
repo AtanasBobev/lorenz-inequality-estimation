@@ -2,6 +2,7 @@ import { LorenzModel } from "../core/LorenzModel.js";
 import { RootFinder } from "../core/RootFinder.js";
 import { RootResult } from "../core/types.js";
 
+// Safeguarded Newton-Raphson solver that damps steps when they leave [lowerBound, upperBound]
 export class NewtonRaphsonSolver implements RootFinder {
   public readonly name = "Newton-Raphson";
 
@@ -14,38 +15,38 @@ export class NewtonRaphsonSolver implements RootFinder {
     tolerance: number = 1e-8,
     maxIterations: number = 100
   ): RootResult {
-    let x = initialGuess;
+    let currentX = initialGuess;
 
     for (let iter = 1; iter <= maxIterations; iter++) {
-      const fx = fn(x);
-      const dfx = dfn(x);
+      const fVal = fn(currentX);
+      const derivativeVal = dfn(currentX);
 
-      if (Math.abs(fx) <= tolerance) {
+      if (Math.abs(fVal) <= tolerance) {
         return {
-          root: x,
-          populationPercentile: x,
+          root: currentX,
+          populationPercentile: currentX,
           iterations: iter,
           converged: true,
-          finalError: Math.abs(fx)
+          finalError: Math.abs(fVal)
         };
       }
 
-      if (Math.abs(dfx) < 1e-15) {
+      if (Math.abs(derivativeVal) < 1e-15) {
         if (Number.isFinite(lowerBound) && Number.isFinite(upperBound)) {
-          x = (lowerBound + upperBound) / 2;
+          currentX = (lowerBound + upperBound) / 2;
           continue;
         }
-        throw new Error(`Derivative too close to zero at x = ${x} (df = ${dfx}).`);
+        throw new Error(`Derivative too close to zero at x = ${currentX} (df = ${derivativeVal}).`);
       }
 
-      const step = fx / dfx;
-      let nextX = x - step;
+      const newtonStep = fVal / derivativeVal;
+      let nextX = currentX - newtonStep;
 
       if (nextX < lowerBound || nextX > upperBound) {
-        nextX = Math.max(lowerBound, Math.min(upperBound, x - 0.5 * step));
+        nextX = Math.max(lowerBound, Math.min(upperBound, currentX - 0.5 * newtonStep));
       }
 
-      if (Math.abs(nextX - x) <= tolerance && Math.abs(fn(nextX)) <= tolerance) {
+      if (Math.abs(nextX - currentX) <= tolerance && Math.abs(fn(nextX)) <= tolerance) {
         return {
           root: nextX,
           populationPercentile: nextX,
@@ -55,15 +56,15 @@ export class NewtonRaphsonSolver implements RootFinder {
         };
       }
 
-      x = nextX;
+      currentX = nextX;
     }
 
     return {
-      root: x,
-      populationPercentile: x,
+      root: currentX,
+      populationPercentile: currentX,
       iterations: maxIterations,
       converged: false,
-      finalError: Math.abs(fn(x))
+      finalError: Math.abs(fn(currentX))
     };
   }
 

@@ -2,7 +2,7 @@ import { QuantileDataset, QuantilePoint } from "../core/types.js";
 import { SyntheticDistribution } from "./SyntheticDistribution.js";
 import { logGamma, regularizedIncompleteBeta } from "./specialFunctions.js";
 
-// Singh-Maddala (Burr XII) distribution with analytical Lorenz curve.
+// Singh-Maddala (Burr XII) distribution with analytical Lorenz curve
 export class SinghMaddalaDistribution implements SyntheticDistribution {
   public readonly name: string;
   public readonly a: number;
@@ -30,11 +30,14 @@ export class SinghMaddalaDistribution implements SyntheticDistribution {
     return regularizedIncompleteBeta(1.0 + 1.0 / this.a, this.q - 1.0 / this.a, u);
   }
 
-  public sampleQuantiles(k: number, meanIncome: number = 50000): QuantileDataset {
+  public sampleQuantiles(bracketCount: number, meanIncome: number = 50000): QuantileDataset {
+    if (bracketCount < 2) {
+      throw new Error(`Subinterval count k must be at least 2, received ${bracketCount}.`);
+    }
     const points: QuantilePoint[] = [{ populationShare: 0.0, incomeShare: 0.0 }];
-    for (let i = 1; i < k; i++) {
-      const p = i / k;
-      points.push({ populationShare: p, incomeShare: this.evaluateLorenz(p) });
+    for (let i = 1; i < bracketCount; i++) {
+      const percentile = i / bracketCount;
+      points.push({ populationShare: percentile, incomeShare: this.evaluateLorenz(percentile) });
     }
     points.push({ populationShare: 1.0, incomeShare: 1.0 });
 

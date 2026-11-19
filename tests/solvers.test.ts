@@ -166,4 +166,81 @@ describe("NewtonRaphsonSolver", () => {
     expect(result.converged).toBe(true);
     expect(result.populationPercentile).toBeCloseTo(0.7, 7);
   });
+
+  it("handles endpoint roots, zero pivots, damped steps, and iteration limits across all solvers", () => {
+    const tridiag = new TridiagonalSolver();
+    expect(() => tridiag.solveVectors([], [0], [], [5])).toThrow(/1x1 system with zero diagonal/);
+    expect(() => tridiag.solveVectors([1, 1], [2, 2], [1], [1, 1])).toThrow(/Lower diagonal/);
+    expect(() => tridiag.solveVectors([1], [2, 2], [1, 1], [1, 1])).toThrow(/Upper diagonal/);
+    expect(() => tridiag.solveVectors([1], [0, 2], [1], [1, 1])).toThrow(/row 0/);
+    expect(() => tridiag.solveVectors([1], [1, 1], [1], [1, 1])).toThrow(/row 1/);
+
+    const bisection = new BisectionSolver();
+    const leftExact = bisection.solve((x) => x - 1, 1, 2);
+    expect(leftExact.iterations).toBe(0);
+    expect(leftExact.root).toBe(1);
+
+    const rightExact = bisection.solve((x) => x - 2, 1, 2);
+    expect(rightExact.iterations).toBe(0);
+    expect(rightExact.root).toBe(2);
+
+    const bisectionUnconverged = bisection.solve((x) => x - 1.333333333333, 1, 2, 1e-15, 2);
+    expect(bisectionUnconverged.converged).toBe(false);
+
+    // Newton-Raphson with zero derivative and finite bounds -> resets to midpoint
+    let callCount = 0;
+    const resMidpoint = newton.solve(
+      (x) => x - 0.5,
+      () => (callCount++ === 0 ? 0 : 1),
+      0.1,
+      0,
+      1
+    );
+    expect(resMidpoint.converged).toBe(true);
+
+    // Newton-Raphson with zero derivative and infinite bounds -> throws
+    expect(() =>
+      newton.solve(
+        (x) => x - 1,
+        () => 0,
+        0.1
+      )
+    ).toThrow(/Derivative too close to zero/);
+
+    // Newton-Raphson step leaving [lowerBound, upperBound] gets damped, and non-convergence after maxIterations
+    const dampedUnconverged = newton.solve(
+      (x) => x * x - 0.25,
+      () => 0.01,
+      0.9,
+      0,
+      1,
+      1e-12,
+      2
+    );
+    expect(dampedUnconverged.converged).toBe(false);
+
+    // Converges on step size (Math.abs(nextX - currentX) <= tolerance && Math.abs(fn(nextX)) <= tolerance)
+    const stepConverged = newton.solve(
+      (x) => (x === 0.5 ? 2e-8 : 0),
+      () => 1e8,
+      0.5,
+      0,
+      1,
+      1e-8,
+      10
+    );
+    expect(stepConverged.converged).toBe(true);
+
+    // Small step where Math.abs(nextX - currentX) <= tolerance but Math.abs(fn(nextX)) > tolerance
+    const tinyStepNotRoot = newton.solve(
+      () => 1.0,
+      () => 1e9,
+      0.5,
+      0,
+      1,
+      1e-8,
+      2
+    );
+    expect(tinyStepNotRoot.converged).toBe(false);
+  });
 });

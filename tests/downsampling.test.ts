@@ -38,7 +38,14 @@ describe("DownsamplingStressTester Breakdown Analysis", () => {
   });
 
   it("identifies information breakdown when downsampled to tertiles", () => {
-    const report = tester.runStressTest("Bulgarian NSI 2022", BULGARIAN_NSI_2022.dataset, 0.3582);
+    const report = tester.runStressTest(
+      "Bulgarian NSI 2022",
+      BULGARIAN_NSI_2022.dataset,
+      0.3582,
+      [10, 6, 5, 4, 3]
+    );
+    const sixBrackets = report.records.find((r) => r.knotCount === 6);
+    expect(sixBrackets?.knotResolutionName).toBe("k=6");
     const tertiles = report.records.find((r) => r.knotCount === 3);
     if (tertiles) {
       expect(tertiles.envelopeWidth).toBeGreaterThan(0.08);

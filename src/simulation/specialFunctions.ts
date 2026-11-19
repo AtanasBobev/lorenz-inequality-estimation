@@ -1,4 +1,4 @@
-// Error function erf(x) via rational approximation.
+// Error function erf(x) via rational approximation
 export function erf(x: number): number {
   const sign = x >= 0 ? 1 : -1;
   const absX = Math.abs(x);
@@ -16,12 +16,12 @@ export function erf(x: number): number {
   return sign * y;
 }
 
-// Standard normal cumulative distribution function Phi(x).
+// Standard normal cumulative distribution function Phi(x)
 export function standardNormalCdf(x: number): number {
   return 0.5 * (1.0 + erf(x / Math.SQRT2));
 }
 
-// Inverse normal cumulative distribution function Phi^{-1}(p).
+// Inverse normal cumulative distribution function Phi^{-1}(p)
 export function inverseNormalCdf(p: number): number {
   if (p <= 0.0) return -Infinity;
   if (p >= 1.0) return Infinity;
@@ -68,7 +68,7 @@ export function inverseNormalCdf(p: number): number {
   }
 }
 
-// Log-gamma function via standard Lanczos approximation (g = 7, N = 9).
+// Log-gamma function via standard Lanczos approximation (g = 7, N = 9)
 export function logGamma(z: number): number {
   if (z <= 0.0) {
     throw new Error(`Gamma function undefined for non-positive numbers (received ${z}).`);
@@ -99,49 +99,45 @@ export function gamma(z: number): number {
   return Math.exp(logGamma(z));
 }
 
-// Evaluates the continued fraction factor for the incomplete beta function (Lentz's method).
+// Prevents division by zero in continued-fraction recurrences
+export function clampTinyDenominator(value: number, minMagnitude: number = 1e-30): number {
+  return Math.abs(value) < minMagnitude ? minMagnitude : value;
+}
+
+// Evaluate the continued fraction factor for the incomplete beta function (Lentz's method)
 function betacf(a: number, b: number, x: number): number {
-  const MAXIT = 200;
-  const EPS = 1e-12;
-  const FPMIN = 1e-30;
+  const maxIterations = 200;
+  const convergenceTol = 1e-12;
   const qab = a + b;
   const qap = a + 1.0;
   const qam = a - 1.0;
 
-  let c = 1.0;
-  let d = 1.0 - (qab * x) / qap;
-  if (Math.abs(d) < FPMIN) d = FPMIN;
-  d = 1.0 / d;
-  let h = d;
+  let cFactor = 1.0;
+  let dFactor = 1.0 / clampTinyDenominator(1.0 - (qab * x) / qap);
+  let fractionValue = dFactor;
 
-  for (let m = 1; m <= MAXIT; m++) {
-    const m2 = 2 * m;
-    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2));
-    d = 1.0 + aa * d;
-    if (Math.abs(d) < FPMIN) d = FPMIN;
-    c = 1.0 + aa / c;
-    if (Math.abs(c) < FPMIN) c = FPMIN;
-    d = 1.0 / d;
-    h *= d * c;
+  for (let m = 1; m <= maxIterations; m++) {
+    const twoM = 2 * m;
+    const evenCoeff = (m * (b - m) * x) / ((qam + twoM) * (a + twoM));
+    dFactor = 1.0 / clampTinyDenominator(1.0 + evenCoeff * dFactor);
+    cFactor = clampTinyDenominator(1.0 + evenCoeff / cFactor);
+    fractionValue *= dFactor * cFactor;
 
-    aa = -((a + m) * (qab + m) * x) / ((a + m2) * (qap + m2));
-    d = 1.0 + aa * d;
-    if (Math.abs(d) < FPMIN) d = FPMIN;
-    c = 1.0 + aa / c;
-    if (Math.abs(c) < FPMIN) c = FPMIN;
-    d = 1.0 / d;
-    const del = d * c;
-    h *= del;
+    const oddCoeff = -((a + m) * (qab + m) * x) / ((a + twoM) * (qap + twoM));
+    dFactor = 1.0 / clampTinyDenominator(1.0 + oddCoeff * dFactor);
+    cFactor = clampTinyDenominator(1.0 + oddCoeff / cFactor);
+    const stepDelta = dFactor * cFactor;
+    fractionValue *= stepDelta;
 
-    if (Math.abs(del - 1.0) < EPS) {
+    if (Math.abs(stepDelta - 1.0) < convergenceTol) {
       break;
     }
   }
 
-  return h;
+  return fractionValue;
 }
 
-// Regularized incomplete beta function I_x(a, b).
+// Regularized incomplete beta function I_x(a, b)
 export function regularizedIncompleteBeta(a: number, b: number, x: number): number {
   if (x <= 0.0) return 0.0;
   if (x >= 1.0) return 1.0;

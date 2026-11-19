@@ -9,7 +9,7 @@ import {
   ConsumptionRegressor
 } from "../src/index.js";
 
-describe("Boilerplate Architecture Smoke Test", () => {
+describe("End-to-End Architecture Smoke Test", () => {
   const dummyDataset = {
     points: [
       { populationShare: 0.0, incomeShare: 0.0 },

@@ -1,48 +1,53 @@
 import { ConsumptionResult } from "../core/types.js";
 
-// Fits Keynesian consumption functions: C = C_0 + c * Y
-// Computes marginal propensity to consume (MPC = dC/dY = c) via ordinary least squares
+// Fits a linear Keynesian consumption function C = C_0 + c * Y via ordinary least squares (OLS)
+// TODO: Support weighted least squares (WLS) when bracket sample sizes differ across deciles
 export class ConsumptionRegressor {
-  // Fits linear consumption model C = C_0 + c * Y
   public fitLinear(income: number[], consumption: number[]): ConsumptionResult {
-    const n = income.length;
-    if (n !== consumption.length || n < 2) {
+    const sampleCount = income.length;
+    if (sampleCount !== consumption.length || sampleCount < 2) {
       throw new Error(
         "Income and consumption arrays must have identical lengths of at least 2 observations."
       );
     }
 
-    let sumX = 0;
-    let sumY = 0;
-    for (let i = 0; i < n; i++) {
+    let sumIncome = 0;
+    let sumConsumption = 0;
+    for (let i = 0; i < sampleCount; i++) {
       if (!Number.isFinite(income[i]) || !Number.isFinite(consumption[i])) {
         throw new Error(`Non-finite observation encountered at index ${i}.`);
       }
-      sumX += income[i];
-      sumY += consumption[i];
+      sumIncome += income[i];
+      sumConsumption += consumption[i];
     }
 
-    const meanX = sumX / n;
-    const meanY = sumY / n;
+    const meanIncome = sumIncome / sampleCount;
+    const meanConsumption = sumConsumption / sampleCount;
 
-    let sxx = 0;
-    let sxy = 0;
-    let syy = 0;
-    for (let i = 0; i < n; i++) {
-      const dx = income[i] - meanX;
-      const dy = consumption[i] - meanY;
-      sxx += dx * dx;
-      sxy += dx * dy;
-      syy += dy * dy;
+    let sumVarIncome = 0;
+    let sumCovariance = 0;
+    let sumVarConsumption = 0;
+    for (let i = 0; i < sampleCount; i++) {
+      const incomeDev = income[i] - meanIncome;
+      const consumptionDev = consumption[i] - meanConsumption;
+      sumVarIncome += incomeDev * incomeDev;
+      sumCovariance += incomeDev * consumptionDev;
+      sumVarConsumption += consumptionDev * consumptionDev;
     }
 
-    if (sxx <= 1e-15) {
+    if (sumVarIncome <= 1e-15) {
       throw new Error("Income observations have zero variance; OLS slope is undefined.");
     }
 
-    const marginalPropensityToConsume = sxy / sxx;
-    const autonomousConsumption = meanY - marginalPropensityToConsume * meanX;
-    const rSquared = syy <= 1e-15 ? 1.0 : Math.max(0, Math.min(1, (sxy * sxy) / (sxx * syy)));
+    const marginalPropensityToConsume = sumCovariance / sumVarIncome;
+    const autonomousConsumption = meanConsumption - marginalPropensityToConsume * meanIncome;
+    const rSquared =
+      sumVarConsumption <= 1e-15
+        ? 1.0
+        : Math.max(
+            0,
+            Math.min(1, (sumCovariance * sumCovariance) / (sumVarIncome * sumVarConsumption))
+          );
 
     return {
       autonomousConsumption,

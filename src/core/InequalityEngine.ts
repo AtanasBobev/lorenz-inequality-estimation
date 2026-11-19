@@ -59,7 +59,8 @@ export class InequalityEngine {
     return this.model.quantileIncome(p);
   }
 
-  // Solves for poverty headcount ratio H where marginal income equals povertyLine.
+  // Solve mu * L'(H) = povertyLine using safeguarded Newton-Raphson with bisection fallback
+  // TODO: Support Foster-Greer-Thorbecke (FGT) poverty gap (alpha=1) and severity (alpha=2) integrals
   public getPovertyHeadcount(
     povertyLine: number,
     meanIncome?: number,
@@ -70,148 +71,152 @@ export class InequalityEngine {
       return 0.0;
     }
 
-    const mu = meanIncome ?? this.model.getDataset().meanIncome;
-    if (mu <= 0) {
-      throw new Error(`Mean income must be strictly positive, received ${mu}.`);
+    const effectiveMean = meanIncome ?? this.model.getDataset().meanIncome;
+    if (effectiveMean <= 0) {
+      throw new Error(`Mean income must be strictly positive, received ${effectiveMean}.`);
     }
 
-    // Check boundary marginal incomes
-    const y0 = mu * this.model.derivative(0.0);
-    if (povertyLine <= y0) {
+    // Check marginal income at the endpoints before running the root solver
+    const minMarginalIncome = effectiveMean * this.model.derivative(0.0);
+    if (povertyLine <= minMarginalIncome) {
       return 0.0;
     }
 
-    const y1 = mu * this.model.derivative(1.0);
-    if (povertyLine >= y1) {
+    const maxMarginalIncome = effectiveMean * this.model.derivative(1.0);
+    if (povertyLine >= maxMarginalIncome) {
       return 1.0;
     }
 
-    // Monotone bracketing interval [a, b] where g(a) <= 0 and g(b) >= 0
-    let a = 0.0;
-    let b = 1.0;
+    let leftBound = 0.0;
+    let rightBound = 1.0;
 
-    // Informed initial guess based on linear interpolation between boundary derivatives
-    let p = Math.max(1e-4, Math.min(1.0 - 1e-4, (povertyLine - y0) / Math.max(1e-6, y1 - y0)));
+    // Start from a linear interpolation guess between the endpoint slopes
+    let candidatePercentile = Math.max(
+      1e-4,
+      Math.min(
+        1.0 - 1e-4,
+        (povertyLine - minMarginalIncome) / Math.max(1e-6, maxMarginalIncome - minMarginalIncome)
+      )
+    );
 
-    for (let iter = 0; iter < maxIterations; iter++) {
-      const currentIncome = mu * this.model.derivative(p);
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+      const currentIncome = effectiveMean * this.model.derivative(candidatePercentile);
       const residual = currentIncome - povertyLine;
 
       if (Math.abs(residual) <= tolerance * Math.max(1.0, povertyLine)) {
-        return p;
+        return candidatePercentile;
       }
 
       if (residual < 0) {
-        a = p;
+        leftBound = candidatePercentile;
       } else {
-        b = p;
+        rightBound = candidatePercentile;
       }
 
-      const intervalWidth = b - a;
-      if (intervalWidth <= tolerance) {
-        return 0.5 * (a + b);
+      const bracketWidth = rightBound - leftBound;
+      if (bracketWidth <= tolerance) {
+        return 0.5 * (leftBound + rightBound);
       }
 
-      // Compute derivative g'(p) = mu * L''(p)
-      const dResidual = mu * this.model.secondDerivative(p);
+      // Derivative of residual g(p) is mu * L''(p)
+      const residualSlope = effectiveMean * this.model.secondDerivative(candidatePercentile);
 
-      // Attempt Newton-Raphson step if second derivative provides reliable gradient
+      // Take a Newton step if curvature is positive and stays inside [leftBound, rightBound]
       let stepAccepted = false;
-      if (dResidual > 1e-12) {
-        const pNewton = p - residual / dResidual;
-        // Accept Newton step only if it lands strictly within current bracketing interval [a, b]
-        if (pNewton > a + 1e-12 && pNewton < b - 1e-12) {
-          p = pNewton;
+      if (residualSlope > 1e-12) {
+        const newtonStep = candidatePercentile - residual / residualSlope;
+        if (newtonStep > leftBound + 1e-12 && newtonStep < rightBound - 1e-12) {
+          candidatePercentile = newtonStep;
           stepAccepted = true;
         }
       }
 
-      // Fallback to bisection step if Newton step was invalid, divergent, or degenerate
       if (!stepAccepted) {
-        p = 0.5 * (a + b);
+        candidatePercentile = 0.5 * (leftBound + rightBound);
       }
     }
 
-    return 0.5 * (a + b);
+    return 0.5 * (leftBound + rightBound);
   }
 
-  // Certifies that estimated Gini lies within Gastwirth bounds [G_L, G_U].
+  // Check the estimated Gini falls inside Gastwirth's (1972) distribution-free bounds [G_L, G_U]
+  // TODO: Add non-parametric bootstrap resampling to estimate confidence intervals alongside [G_L, G_U]
   public certifyGastwirthBounds(estimatedGini?: number): GastwirthCertificate {
     const dataset = this.model.getDataset();
     const points = dataset.points;
-    const k = points.length - 1;
+    const bracketCount = points.length - 1;
 
     let chordArea = 0.0;
-    const secants: number[] = [];
+    const secantSlopes: number[] = [];
 
-    for (let i = 1; i <= k; i++) {
-      const hi = points[i].populationShare - points[i - 1].populationShare;
-      const deltaL = points[i].incomeShare - points[i - 1].incomeShare;
-      secants.push(deltaL / hi);
-      chordArea += 0.5 * hi * (points[i].incomeShare + points[i - 1].incomeShare);
+    for (let i = 1; i <= bracketCount; i++) {
+      const stepWidth = points[i].populationShare - points[i - 1].populationShare;
+      const incomeIncrement = points[i].incomeShare - points[i - 1].incomeShare;
+      secantSlopes.push(incomeIncrement / stepWidth);
+      chordArea += 0.5 * stepWidth * (points[i].incomeShare + points[i - 1].incomeShare);
     }
 
     const lowerBound = Math.max(0.0, 1.0 - 2.0 * chordArea);
 
-    let deltaG = 0.0;
-    for (let i = 0; i < k; i++) {
-      const hi = points[i + 1].populationShare - points[i].populationShare;
-      const sPrev = i > 0 ? secants[i - 1] : 0.0;
-      const sNext = i < k - 1 ? secants[i + 1] : secants[i] * 1.5;
-      deltaG += 0.5 * hi * hi * (sNext - sPrev);
+    let maxDispersionSpread = 0.0;
+    for (let i = 0; i < bracketCount; i++) {
+      const stepWidth = points[i + 1].populationShare - points[i].populationShare;
+      const prevSlope = i > 0 ? secantSlopes[i - 1] : 0.0;
+      const nextSlope = i < bracketCount - 1 ? secantSlopes[i + 1] : secantSlopes[i] * 1.5;
+      maxDispersionSpread += 0.5 * stepWidth * stepWidth * (nextSlope - prevSlope);
     }
 
-    const upperBound = Math.min(1.0, lowerBound + deltaG);
+    const upperBound = Math.min(1.0, lowerBound + maxDispersionSpread);
     const intervalWidth = upperBound - lowerBound;
 
-    const gEst = estimatedGini ?? this.computeGini(200).giniIndex;
-    const isCertified = gEst >= lowerBound - 1e-7 && gEst <= upperBound + 1e-7;
+    const giniEstimate = estimatedGini ?? this.computeGini(200).giniIndex;
+    const isCertified = giniEstimate >= lowerBound - 1e-7 && giniEstimate <= upperBound + 1e-7;
     const maxError = 0.5 * intervalWidth;
 
     return {
       lowerBound,
       upperBound,
       intervalWidth,
-      estimatedGini: gEst,
+      estimatedGini: giniEstimate,
       isCertified,
       maxError
     };
   }
 
-  // Evaluates top-income wealth shares across high-net-worth brackets.
+  // Compute income shares held by standard policy brackets (top 10%/5%/1%, bottom 40%/50%, middle 40%)
   public computeTopIncomeShares(): TopIncomeShares {
-    const l40 = this.model.evaluate(0.4);
-    const l50 = this.model.evaluate(0.5);
-    const l90 = this.model.evaluate(0.9);
-    const l95 = this.model.evaluate(0.95);
-    const l99 = this.model.evaluate(0.99);
-    const l999 = this.model.evaluate(0.999);
-    const l9999 = this.model.evaluate(0.9999);
+    const shareAt40 = this.model.evaluate(0.4);
+    const shareAt50 = this.model.evaluate(0.5);
+    const shareAt90 = this.model.evaluate(0.9);
+    const shareAt95 = this.model.evaluate(0.95);
+    const shareAt99 = this.model.evaluate(0.99);
+    const shareAt999 = this.model.evaluate(0.999);
+    const shareAt9999 = this.model.evaluate(0.9999);
 
     return {
-      top10PercentShare: Math.max(0, Math.min(1, 1 - l90)),
-      top5PercentShare: Math.max(0, Math.min(1, 1 - l95)),
-      top1PercentShare: Math.max(0, Math.min(1, 1 - l99)),
-      top01PercentShare: Math.max(0, Math.min(1, 1 - l999)),
-      top001PercentShare: Math.max(0, Math.min(1, 1 - l9999)),
-      bottom40PercentShare: Math.max(0, Math.min(1, l40)),
-      bottom50PercentShare: Math.max(0, Math.min(1, l50)),
-      middle40PercentShare: Math.max(0, Math.min(1, l90 - l50))
+      top10PercentShare: Math.max(0, Math.min(1, 1 - shareAt90)),
+      top5PercentShare: Math.max(0, Math.min(1, 1 - shareAt95)),
+      top1PercentShare: Math.max(0, Math.min(1, 1 - shareAt99)),
+      top01PercentShare: Math.max(0, Math.min(1, 1 - shareAt999)),
+      top001PercentShare: Math.max(0, Math.min(1, 1 - shareAt9999)),
+      bottom40PercentShare: Math.max(0, Math.min(1, shareAt40)),
+      bottom50PercentShare: Math.max(0, Math.min(1, shareAt50)),
+      middle40PercentShare: Math.max(0, Math.min(1, shareAt90 - shareAt50))
     };
   }
 
-  // Evaluates poverty headcount sensitivity and elasticity with respect to threshold z and mean mu.
+  // Compute Kakwani poverty headcount elasticities with respect to poverty line z and mean income mu
   public computePovertyElasticities(povertyLine: number, meanIncome?: number): PovertyElasticities {
-    const mu = meanIncome ?? this.model.getDataset().meanIncome;
-    if (mu <= 0) {
-      throw new Error(`Mean income must be positive, received ${mu}.`);
+    const effectiveMean = meanIncome ?? this.model.getDataset().meanIncome;
+    if (effectiveMean <= 0) {
+      throw new Error(`Mean income must be positive, received ${effectiveMean}.`);
     }
 
     if (povertyLine <= 0) {
       return {
         povertyHeadcount: 0,
         povertyLine,
-        meanIncome: mu,
+        meanIncome: effectiveMean,
         marginalIncome: 0,
         incomeDensity: 0,
         dH_dz: 0,
@@ -221,28 +226,28 @@ export class InequalityEngine {
       };
     }
 
-    const H = this.getPovertyHeadcount(povertyLine, mu);
-    const lPrime = this.model.derivative(H);
-    const lDoublePrime = this.model.secondDerivative(H);
-    const marginalIncome = mu * lPrime;
-    const incomeDensity = mu * lDoublePrime;
+    const headcount = this.getPovertyHeadcount(povertyLine, effectiveMean);
+    const firstDerivative = this.model.derivative(headcount);
+    const secondDerivative = this.model.secondDerivative(headcount);
+    const marginalIncome = effectiveMean * firstDerivative;
+    const incomeDensity = effectiveMean * secondDerivative;
 
     let dH_dz = 0;
     let dH_dmu = 0;
     let elasticityZ = 0;
     let elasticityMu = 0;
 
-    if (H > 1e-6 && H < 1 - 1e-6 && incomeDensity > 1e-12) {
+    if (headcount > 1e-6 && headcount < 1 - 1e-6 && incomeDensity > 1e-12) {
       dH_dz = 1 / incomeDensity;
-      dH_dmu = -povertyLine / (mu * incomeDensity);
-      elasticityZ = (povertyLine / H) * dH_dz;
-      elasticityMu = (mu / H) * dH_dmu;
+      dH_dmu = -povertyLine / (effectiveMean * incomeDensity);
+      elasticityZ = (povertyLine / headcount) * dH_dz;
+      elasticityMu = (effectiveMean / headcount) * dH_dmu;
     }
 
     return {
-      povertyHeadcount: H,
+      povertyHeadcount: headcount,
       povertyLine,
-      meanIncome: mu,
+      meanIncome: effectiveMean,
       marginalIncome,
       incomeDensity,
       dH_dz,
@@ -252,7 +257,7 @@ export class InequalityEngine {
     };
   }
 
-  // Evaluates complete inequality metrics including Gini, Sen index, Palma ratio, and bounds.
+  // Evaluate complete inequality metrics including Gini, Sen index, Palma ratio, and bounds
   public computeComprehensiveMetrics(
     stepCount: number = 200,
     povertyLine?: number

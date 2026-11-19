@@ -20,15 +20,8 @@ export interface ParameterValidation {
   isValid: boolean;
 }
 
-/**
- * Validates discrete quantile knots against mathematical and economic Lorenz axioms:
- * 1. Boundary Anchors: (0, 0) and (1, 1).
- * 2. Strict population monotonicity: p_{i} > p_{i-1}.
- * 3. Weak income monotonicity: L_{i} >= L_{i-1}.
- * 4. Sub-diagonal condition: L_i <= p_i.
- * 5. Knot count >= 3.
- */
-export function validateQuantilePoints(points: QuantilePoint[]): ValidationReport {
+// Checks quantile knots for boundary anchors, monotonic ordering, and L(p) <= p
+export function validateQuantilePoints(points: readonly QuantilePoint[]): ValidationReport {
   const errors: KnotError[] = [];
   const warnings: string[] = [];
 
@@ -126,14 +119,11 @@ export function validateQuantilePoints(points: QuantilePoint[]): ValidationRepor
   };
 }
 
-/**
- * Validates economic parameters (mean income, poverty line, splicing point).
- */
+// Checks whether mean income, poverty line, and Pareto splicing knot are in valid ranges
 export function validateEconomicParameters(
   meanIncome: number,
   povertyLine: number,
-  splicePoint: number,
-  points: QuantilePoint[]
+  splicePoint: number
 ): ParameterValidation {
   let meanIncomeError: string | null = null;
   let povertyLineError: string | null = null;
@@ -168,14 +158,10 @@ export function validateEconomicParameters(
   };
 }
 
-/**
- * Automatically repairs and normalizes a broken quantile dataset into a valid Lorenz specification:
- * - Fixes anchors: (0, 0) and (1, 1).
- * - Sorts interior knots strictly ascending by p.
- * - Deduplicates identical population coordinates.
- * - Clamps L_i <= p_i and enforces L_i >= L_{i-1}.
- */
-export function autoRepairQuantiles(points: QuantilePoint[]): QuantilePoint[] {
+// Normalizes an edited quantile table by sorting knots, fixing endpoints, and clamping L_i <= p_i
+export function autoRepairQuantiles(
+  points: readonly QuantilePoint[]
+): Array<{ populationShare: number; incomeShare: number }> {
   if (points.length < 2) {
     return [
       { populationShare: 0.0, incomeShare: 0.0 },

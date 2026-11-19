@@ -3,7 +3,7 @@ import { ValidationReport } from "./validation.js";
 
 export function renderTable(
   tableBody: HTMLElement | null,
-  points: QuantilePoint[],
+  points: readonly QuantilePoint[],
   validation: ValidationReport,
   onUpdate: (index: number, field: "p" | "L", val: number) => void,
   onDelete: (index: number) => void
@@ -57,10 +57,10 @@ export function renderTable(
             : `<input type="number" step="0.001" min="0" max="1" class="${lClass}" value="${pt.incomeShare.toFixed(4)}" data-idx="${index}" data-field="L">`
         }
       </td>
-      <td class="text-center py-1" style="width: 38px;">
+      <td class="text-center py-1" style="width: 46px;">
         ${
           isFirst || isLast
-            ? `<span class="text-muted" style="font-size: 0.8rem;">🔒</span>`
+            ? `<span class="badge badge-secondary badge-na" title="Anchor boundary fixed">N/A</span>`
             : `<button class="btn btn-sm btn-outline-secondary py-0 px-1" data-delete="${index}" title="Remove knot" style="line-height: 1.2;">&times;</button>`
         }
       </td>

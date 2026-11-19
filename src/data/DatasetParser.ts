@@ -13,67 +13,70 @@ export interface ParseOptions {
   meanIncome?: number;
 }
 
+// Parse CSV, TSV, semicolon-delimited, or JSON quantile tables into validated Lorenz knots
+// TODO: Support multi-column SDMX-JSON payloads directly from Eurostat and World Bank APIs
 export class DatasetParser {
   static parseDelimited(text: string, options: ParseOptions = {}): QuantileData {
-    const lines = text
+    const nonEmptyLines = text
       .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0 && !l.startsWith("#") && !l.startsWith("//"));
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith("#") && !line.startsWith("//"));
 
-    if (lines.length < 2) {
+    if (nonEmptyLines.length < 2) {
       throw new Error("Dataset must contain at least two data points.");
     }
 
-    const firstLine = lines[0];
+    const firstLine = nonEmptyLines[0];
     const delimiter = this.detectDelimiter(firstLine);
 
-    let startIndex = 0;
-    const headerTokens = firstLine.split(delimiter).map((t) => t.trim().toLowerCase());
-    const isHeader = headerTokens.some((t) => isNaN(parseFloat(t.replace("%", ""))));
-    if (isHeader) {
-      startIndex = 1;
+    let startRowIndex = 0;
+    const headerTokens = firstLine.split(delimiter).map((token) => token.trim().toLowerCase());
+    const hasHeaderRow = headerTokens.some((token) => isNaN(parseFloat(token.replace("%", ""))));
+    if (hasHeaderRow) {
+      startRowIndex = 1;
     }
 
-    const pRaw: number[] = [];
-    const lRaw: number[] = [];
+    const rawPopValues: number[] = [];
+    const rawIncomeValues: number[] = [];
 
-    for (let i = startIndex; i < lines.length; i++) {
-      const line = lines[i];
-      const tokens = line.split(delimiter).map((t) => t.trim());
+    for (let i = startRowIndex; i < nonEmptyLines.length; i++) {
+      const line = nonEmptyLines[i];
+      const tokens = line.split(delimiter).map((token) => token.trim());
       if (tokens.length < 2) continue;
 
-      const pVal = this.parseNumericToken(tokens[0]);
-      const lVal = this.parseNumericToken(tokens[1]);
+      const popValue = this.parseNumericToken(tokens[0]);
+      const incomeValue = this.parseNumericToken(tokens[1]);
 
-      if (isNaN(pVal) || isNaN(lVal)) {
+      if (isNaN(popValue) || isNaN(incomeValue)) {
         throw new Error(`Invalid numerical value on line ${i + 1}: "${line}"`);
       }
 
-      pRaw.push(pVal);
-      lRaw.push(lVal);
+      rawPopValues.push(popValue);
+      rawIncomeValues.push(incomeValue);
     }
 
-    if (pRaw.length < 2) {
+    if (rawPopValues.length < 2) {
       throw new Error("Insufficient valid data points parsed from input table.");
     }
 
-    const pNormalized = this.normalizeProportions(pRaw);
-    let lNormalized = this.normalizeProportions(lRaw);
+    const normalizedPop = this.normalizeProportions(rawPopValues);
+    let normalizedIncome = this.normalizeProportions(rawIncomeValues);
 
-    const isCumulative = options.assumeCumulative ?? this.detectIfCumulative(lNormalized);
+    const isCumulative = options.assumeCumulative ?? this.detectIfCumulative(normalizedIncome);
 
+    // Census tables sometimes report marginal bracket shares instead of cumulative totals
     if (!isCumulative) {
-      lNormalized = this.cumulativeSum(lNormalized);
+      normalizedIncome = this.cumulativeSum(normalizedIncome);
     }
 
-    const data: QuantileData = {
-      p: pNormalized,
-      L: lNormalized,
+    const parsedData: QuantileData = {
+      p: normalizedPop,
+      L: normalizedIncome,
       name: options.name ?? "Custom Ingested Dataset",
       meanIncome: options.meanIncome
     };
 
-    return this.validateQuantiles(data);
+    return this.validateQuantiles(parsedData);
   }
 
   static parseJson(jsonText: string, options: ParseOptions = {}): QuantileData {
@@ -94,8 +97,8 @@ export class DatasetParser {
 
       for (let i = 0; i < parsed.length; i++) {
         const item = parsed[i] as Record<string, unknown>;
-        const pVal = Number(item.p ?? item.pop ?? item.population ?? item.percentile ?? item.x);
-        const lVal = Number(item.L ?? item.income ?? item.share ?? item.cumIncome ?? item.y);
+        const pVal = Number(item.p ?? item.population);
+        const lVal = Number(item.L ?? item.income);
 
         if (isNaN(pVal) || isNaN(lVal)) {
           throw new Error(`Invalid numerical properties in JSON item at index ${i}`);
@@ -109,8 +112,8 @@ export class DatasetParser {
 
     if (typeof parsed === "object" && parsed !== null) {
       const obj = parsed as Record<string, unknown>;
-      const pArr = (obj.p ?? obj.population ?? obj.percentiles) as number[] | undefined;
-      const lArr = (obj.L ?? obj.income ?? obj.shares) as number[] | undefined;
+      const pArr = (obj.p ?? obj.population) as number[] | undefined;
+      const lArr = (obj.L ?? obj.income) as number[] | undefined;
 
       if (Array.isArray(pArr) && Array.isArray(lArr) && pArr.length >= 2) {
         const name = typeof obj.name === "string" ? obj.name : options.name;
@@ -149,13 +152,13 @@ export class DatasetParser {
       throw new Error("Quantile dataset must contain at least 2 points.");
     }
 
-    // Automatically ensure (0, 0) anchor
+    // ensure (0, 0) anchor
     if (Math.abs(p[0]) > 1e-7 || Math.abs(L[0]) > 1e-7) {
       p.unshift(0.0);
       L.unshift(0.0);
     }
 
-    // Automatically ensure (1, 1) anchor
+    // ensure (1, 1) anchor
     const lastIdx = p.length - 1;
     if (Math.abs(p[lastIdx] - 1.0) > 1e-7 || Math.abs(L[lastIdx] - 1.0) > 1e-7) {
       p.push(1.0);

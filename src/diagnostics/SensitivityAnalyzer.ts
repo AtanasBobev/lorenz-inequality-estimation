@@ -38,16 +38,18 @@ export const WID_BENCHMARKS: Record<string, WIDBenchmarkData> = {
   }
 };
 
+// Parametric sensitivity sweeps across splicing thresholds, poverty lines, and WID top-income benchmarks
+// TODO: Add 2D sensitivity grid over both splicing knot p* and quadrature subinterval count N
 export class SensitivityAnalyzer {
   private static readonly integrator = new SimpsonsIntegrator();
   private static readonly rootFinder = new BisectionSolver();
 
-  // Performs systematic parametric scan across Pareto splicing knot p* in [startP, endP].
+  // Scans Pareto splicing knot p* across [startP, endP] and records Gini, alpha, and curvature jump
   public static sweepParetoSplice(
     dataset: QuantileDataset,
     startP: number = 0.6,
     endP: number = 0.95,
-    step: number = 0.05,
+    stepSize: number = 0.05,
     bodyModelType: "pchip" | "cubicspline" = "pchip"
   ): ParetoSensitivityRecord[] {
     const records: ParetoSensitivityRecord[] = [];
@@ -56,11 +58,10 @@ export class SensitivityAnalyzer {
         ? new CubicSplineLorenzCurve(dataset)
         : new PchipLorenzCurve(dataset);
 
-    const stepsCount = Math.max(1, Math.round((endP - startP) / step));
+    const stepCount = Math.max(1, Math.round((endP - startP) / stepSize));
 
-    for (let i = 0; i <= stepsCount; i++) {
-      const pStar = Math.min(endP, Number((startP + i * step).toFixed(4)));
-      if (pStar <= 0 || pStar >= 1) continue;
+    for (let i = 0; i <= stepCount; i++) {
+      const pStar = Math.min(endP, Number((startP + i * stepSize).toFixed(4)));
 
       try {
         const hybrid = new HybridLorenzCurve(dataset, {
@@ -69,13 +70,12 @@ export class SensitivityAnalyzer {
         });
         const engine = new InequalityEngine(hybrid, this.integrator, this.rootFinder);
         const giniResult = engine.computeGini(200);
-        const cert = engine.certifyGastwirthBounds(giniResult.giniIndex);
-        const alpha = hybrid.getTailAlpha();
+        const certificate = engine.certifyGastwirthBounds(giniResult.giniIndex);
+        const tailAlpha = hybrid.getTailAlpha();
 
         const top1PercentShare = Math.max(0, Math.min(1, 1 - hybrid.evaluate(0.99)));
         const top01PercentShare = Math.max(0, Math.min(1, 1 - hybrid.evaluate(0.999)));
 
-        // Curvature jump: |L''_pareto(p*) - L''_spline(p*)|
         const splineCurvature = baseSpline.secondDerivative(pStar);
         const hybridCurvature = hybrid.secondDerivative(Math.min(0.9999, pStar + 1e-5));
         const secondDerivativeJump = Math.abs(hybridCurvature - splineCurvature);
@@ -83,14 +83,13 @@ export class SensitivityAnalyzer {
         records.push({
           pStar,
           giniIndex: giniResult.giniIndex,
-          tailAlpha: alpha,
+          tailAlpha,
           top1PercentShare,
           top01PercentShare,
           secondDerivativeJump,
-          isCertified: cert.isCertified
+          isCertified: certificate.isCertified
         });
       } catch {
-        // Skip points where calibration does not yield valid tail alpha > 1
         continue;
       }
     }
@@ -98,7 +97,7 @@ export class SensitivityAnalyzer {
     return records;
   }
 
-  // Analyzes poverty headcount sensitivity across varying thresholds.
+  // Analyzes poverty headcount sensitivity across varying thresholds
   public static computePovertySensitivityTable(
     model: LorenzModel,
     povertyLines: number[],
@@ -108,13 +107,13 @@ export class SensitivityAnalyzer {
     return povertyLines.map((line) => engine.computePovertyElasticities(line, meanIncome));
   }
 
-  // Decomposes high-net-worth upper-tail wealth shares.
+  // Decomposes high-net-worth upper-tail wealth shares
   public static decomposeTopWealth(model: LorenzModel): TopIncomeShares {
     const engine = new InequalityEngine(model, this.integrator, this.rootFinder);
     return engine.computeTopIncomeShares();
   }
 
-  // Compares model reconstructed top-income shares against official World Inequality Database (WID) benchmarks.
+  // Compares model reconstructed top-income shares against official World Inequality Database (WID) benchmarks
   public static compareWithWID(
     datasetKey: "bulgaria" | "eurostat" | "us_census",
     splineModel: LorenzModel,

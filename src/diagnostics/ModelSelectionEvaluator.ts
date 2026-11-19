@@ -21,72 +21,48 @@ export interface KnotOptimizationOptions {
   readonly bodyModelType?: "pchip" | "cubicspline";
 }
 
-/**
- * ModelSelectionEvaluator
- *
- * Implements information-theoretic criteria for Lorenz curve evaluation:
- * - Residual Sum of Squares (RSS), RMSE, MAE, R^2
- * - Maximized Log-Likelihood ln(L) under Gaussian error distribution
- * - Akaike Information Criterion (AIC)
- * - Hurvich-Tsai small-sample corrected AIC (AICc)
- * - Bayesian Information Criterion (BIC / Schwarz)
- * - Multi-model ranking via delta AICc and Akaike weights (w_m)
- * - Adaptive Pareto tail splicing knot (p*) optimization balancing goodness-of-fit
- *   with C^2 curvature continuity.
- */
+// Information-theoretic model selection (AIC, AICc, BIC, Akaike weights) and
+// penalized knot selection for splicing a Pareto tail onto an empirical spline
+// TODO: Implement leave-one-knot-out cross-validation as an out-of-sample check alongside AICc
 export class ModelSelectionEvaluator {
   private static readonly EPSILON_RSS = 1e-14;
 
-  /**
-   * Computes maximized log-likelihood under Gaussian error distribution:
-   * ln(L) = -0.5 * n * ln(2*pi) - 0.5 * n * ln(RSS / n) - 0.5 * n
-   */
+  // Gaussian log-likelihood: ln(L) = -0.5*n*ln(2*pi) - 0.5*n*ln(RSS/n) - 0.5*n
   public static computeLogLikelihood(sampleSize: number, rss: number): number {
     if (sampleSize <= 0) {
       throw new Error("Sample size must be strictly positive.");
     }
-    const safeRss = Math.max(rss, this.EPSILON_RSS);
+    const clampedRss = Math.max(rss, this.EPSILON_RSS);
     return (
       -0.5 * sampleSize * Math.log(2 * Math.PI) -
-      0.5 * sampleSize * Math.log(safeRss / sampleSize) -
+      0.5 * sampleSize * Math.log(clampedRss / sampleSize) -
       0.5 * sampleSize
     );
   }
 
-  /**
-   * Standard Akaike Information Criterion:
-   * AIC = 2*k - 2*ln(L)
-   */
-  public static computeAIC(sampleSize: number, rss: number, k: number): number {
-    const ll = this.computeLogLikelihood(sampleSize, rss);
-    return 2 * k - 2 * ll;
+  // Standard Akaike Information Criterion: AIC = 2*k - 2*ln(L)
+  public static computeAIC(sampleSize: number, rss: number, paramCount: number): number {
+    const logLikelihood = this.computeLogLikelihood(sampleSize, rss);
+    return 2 * paramCount - 2 * logLikelihood;
   }
 
-  /**
-   * Hurvich & Tsai (1989) small-sample corrected AIC:
-   * AICc = AIC + (2*k*(k+1)) / (n - k - 1)
-   */
-  public static computeAICc(sampleSize: number, rss: number, k: number): number {
-    const aic = this.computeAIC(sampleSize, rss, k);
-    const denominator = sampleSize - k - 1;
-    if (denominator <= 0) {
+  // Hurvich-Tsai small-sample correction: AICc = AIC + 2*k*(k+1) / (n - k - 1)
+  public static computeAICc(sampleSize: number, rss: number, paramCount: number): number {
+    const aic = this.computeAIC(sampleSize, rss, paramCount);
+    const degreesOfFreedom = sampleSize - paramCount - 1;
+    if (degreesOfFreedom <= 0) {
       return Number.POSITIVE_INFINITY;
     }
-    return aic + (2 * k * (k + 1)) / denominator;
+    return aic + (2 * paramCount * (paramCount + 1)) / degreesOfFreedom;
   }
 
-  /**
-   * Bayesian Information Criterion (Schwarz 1978):
-   * BIC = k * ln(n) - 2 * ln(L)
-   */
-  public static computeBIC(sampleSize: number, rss: number, k: number): number {
-    const ll = this.computeLogLikelihood(sampleSize, rss);
-    return k * Math.log(sampleSize) - 2 * ll;
+  // Schwarz Bayesian Information Criterion: BIC = k*ln(n) - 2*ln(L)
+  public static computeBIC(sampleSize: number, rss: number, paramCount: number): number {
+    const logLikelihood = this.computeLogLikelihood(sampleSize, rss);
+    return paramCount * Math.log(sampleSize) - 2 * logLikelihood;
   }
 
-  /**
-   * Evaluates statistical metrics and information criteria for a single model on a dataset.
-   */
+  // Compute residual fit metrics and information criteria for one fitted Lorenz model
   public static evaluateModel(
     dataset: QuantileDataset,
     model: LorenzModel,
@@ -94,8 +70,8 @@ export class ModelSelectionEvaluator {
     modelName: string = "LorenzModel"
   ): ModelEvaluationRecord {
     const points = dataset.points;
-    const n = points.length;
-    if (n === 0) {
+    const sampleSize = points.length;
+    if (sampleSize === 0) {
       throw new Error("Dataset contains no quantile points.");
     }
 
@@ -103,38 +79,38 @@ export class ModelSelectionEvaluator {
     let absoluteErrorSum = 0;
     let meanObserved = 0;
 
-    for (const pt of points) {
-      meanObserved += pt.incomeShare;
+    for (const knot of points) {
+      meanObserved += knot.incomeShare;
     }
-    meanObserved /= n;
+    meanObserved /= sampleSize;
 
     let totalSumSquares = 0;
 
-    for (const pt of points) {
-      const p = pt.populationShare;
-      const actualL = pt.incomeShare;
-      const predictedL = model.evaluate(p);
-      const residual = actualL - predictedL;
+    for (const knot of points) {
+      const percentile = knot.populationShare;
+      const actualShare = knot.incomeShare;
+      const predictedShare = model.evaluate(percentile);
+      const residual = actualShare - predictedShare;
 
       rss += residual * residual;
       absoluteErrorSum += Math.abs(residual);
-      totalSumSquares += (actualL - meanObserved) * (actualL - meanObserved);
+      totalSumSquares += (actualShare - meanObserved) * (actualShare - meanObserved);
     }
 
-    const mse = rss / n;
+    const mse = rss / sampleSize;
     const rmse = Math.sqrt(mse);
-    const mae = absoluteErrorSum / n;
+    const mae = absoluteErrorSum / sampleSize;
     const rSquared = totalSumSquares > 0 ? Math.max(0, 1 - rss / totalSumSquares) : 1.0;
 
-    const logLikelihood = this.computeLogLikelihood(n, rss);
-    const aic = this.computeAIC(n, rss, parameterCount);
-    const aicc = this.computeAICc(n, rss, parameterCount);
-    const bic = this.computeBIC(n, rss, parameterCount);
+    const logLikelihood = this.computeLogLikelihood(sampleSize, rss);
+    const aic = this.computeAIC(sampleSize, rss, parameterCount);
+    const aicc = this.computeAICc(sampleSize, rss, parameterCount);
+    const bic = this.computeBIC(sampleSize, rss, parameterCount);
 
     return {
       modelName,
       parameterCount,
-      sampleSize: n,
+      sampleSize,
       rss,
       mse,
       rmse,
@@ -150,10 +126,7 @@ export class ModelSelectionEvaluator {
     };
   }
 
-  /**
-   * Compares multiple candidate models on the same dataset,
-   * computing relative delta AICc, Akaike weights, and evidence ratios.
-   */
+  // Ranks candidate models by AICc and computes Akaike weights and evidence ratios
   public static compareModels(
     dataset: QuantileDataset,
     candidates: readonly CandidateModelSpec[]
@@ -162,34 +135,30 @@ export class ModelSelectionEvaluator {
       return [];
     }
 
-    // 1. Evaluate individual models
-    const evaluated = candidates.map((spec) =>
+    const evaluatedRecords = candidates.map((spec) =>
       this.evaluateModel(dataset, spec.model, spec.parameterCount, spec.name)
     );
 
-    // 2. Find minimum AICc
     let minAicc = Number.POSITIVE_INFINITY;
-    for (const record of evaluated) {
+    for (const record of evaluatedRecords) {
       if (record.aicc < minAicc) {
         minAicc = record.aicc;
       }
     }
 
-    // 3. Compute delta AICc and unnormalized likelihoods
     const relativeLikelihoods: number[] = [];
     let sumLikelihoods = 0;
 
-    for (const record of evaluated) {
+    for (const record of evaluatedRecords) {
       const deltaAicc = record.aicc - minAicc;
       const relLikelihood = Math.exp(-0.5 * deltaAicc);
       relativeLikelihoods.push(relLikelihood);
       sumLikelihoods += relLikelihood;
     }
 
-    // 4. Compute normalized Akaike weights and evidence ratios
-    const results: ModelEvaluationRecord[] = evaluated.map((record, idx) => {
+    const rankedResults: ModelEvaluationRecord[] = evaluatedRecords.map((record, idx) => {
       const deltaAic = record.aicc - minAicc;
-      const akaikeWeight = sumLikelihoods > 0 ? relativeLikelihoods[idx] / sumLikelihoods : 0;
+      const akaikeWeight = relativeLikelihoods[idx] / sumLikelihoods;
       const evidenceRatio = akaikeWeight > 0 ? 1.0 / akaikeWeight : Number.POSITIVE_INFINITY;
 
       return {
@@ -200,14 +169,10 @@ export class ModelSelectionEvaluator {
       };
     });
 
-    // 5. Sort ascending by deltaAic (best model first)
-    return results.sort((a, b) => a.deltaAic - b.deltaAic);
+    return rankedResults.sort((a, b) => a.deltaAic - b.deltaAic);
   }
 
-  /**
-   * Performs adaptive Pareto tail splicing knot (p*) optimization.
-   * Jointly minimizes AICc and curvature discontinuity |ΔL''(p*)| across candidate knots.
-   */
+  // Searches candidate splicing knots p* for the best trade-off between AICc fit and curvature jump
   public static findOptimalKnot(
     dataset: QuantileDataset,
     options: KnotOptimizationOptions = {}
@@ -226,13 +191,10 @@ export class ModelSelectionEvaluator {
     let bestAlpha = 2.0;
     let minScore = Number.POSITIVE_INFINITY;
 
-    const n = dataset.points.length;
-    // Parameter count in hybrid model: knot p* + tail alpha = 2 degrees of freedom
-    const kHybrid = 2;
+    const sampleSize = dataset.points.length;
+    const hybridParamCount = 2;
 
     for (const pStar of candidateKnots) {
-      if (pStar <= 0 || pStar >= 1) continue;
-
       try {
         const hybrid = new HybridLorenzCurve(dataset, {
           bodyModel: baseSpline,
@@ -242,24 +204,21 @@ export class ModelSelectionEvaluator {
         const alpha = hybrid.getTailAlpha();
         const isAdmissible = alpha > 1.0 && alpha < 12.0;
 
-        // Evaluate RSS across empirical reporting points
         let rss = 0;
-        for (const pt of dataset.points) {
-          const res = pt.incomeShare - hybrid.evaluate(pt.populationShare);
-          rss += res * res;
+        for (const knot of dataset.points) {
+          const residual = knot.incomeShare - hybrid.evaluate(knot.populationShare);
+          rss += residual * residual;
         }
 
-        const aic = this.computeAIC(n, rss, kHybrid);
-        const aicc = this.computeAICc(n, rss, kHybrid);
-        const bic = this.computeBIC(n, rss, kHybrid);
+        const aic = this.computeAIC(sampleSize, rss, hybridParamCount);
+        const aicc = this.computeAICc(sampleSize, rss, hybridParamCount);
+        const bic = this.computeBIC(sampleSize, rss, hybridParamCount);
 
-        // Curvature jump |L''_pareto(p*) - L''_spline(p*)|
         const splineCurvature = baseSpline.secondDerivative(pStar);
         const hybridCurvature = hybrid.secondDerivative(Math.min(0.9999, pStar + 1e-5));
         const curvatureJump = Math.abs(hybridCurvature - splineCurvature);
 
-        // Penalized criterion: AICc + lambda * ln(1 + curvatureJump)
-        // If tail alpha is unphysical (alpha > 5.0 or alpha <= 1.05), apply heavy regularization penalty
+        // Penalize extreme tail exponents (alpha > 5 or alpha < 1.1) so we don't pick degenerate knots
         let alphaPenalty = 0;
         if (alpha > 5.0) {
           alphaPenalty = 5.0 * (alpha - 5.0);
@@ -289,7 +248,6 @@ export class ModelSelectionEvaluator {
           bestAlpha = alpha;
         }
       } catch {
-        // Skip knots where closed-form splicing fails admissibility
         continue;
       }
     }
