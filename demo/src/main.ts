@@ -121,6 +121,10 @@ function syncSplicingThreshold(val: number): void {
   if (el.rangeSplice) {
     el.rangeSplice.value = formatted;
     el.rangeSplice.setAttribute("value", formatted);
+    el.rangeSplice.setAttribute("aria-valuetext", formatted);
+    el.rangeSplice.style.setProperty("--attr-min", el.rangeSplice.min || "0.60");
+    el.rangeSplice.style.setProperty("--attr-max", el.rangeSplice.max || "0.95");
+    el.rangeSplice.style.setProperty("--control-value", formatted);
   }
   if (el.numSplice) {
     el.numSplice.value = formatted;

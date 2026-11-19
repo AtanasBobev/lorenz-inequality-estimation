@@ -1,21 +1,20 @@
 # Lorenz Inequality Estimation
 
-A standalone, client-side TypeScript engine for reconstructing continuous, economically valid Lorenz curves and estimating inequality metrics (such as the Gini index, Palma ratio, and Sen social welfare) from discrete, censored census quantiles (e.g., 5 quintiles or 10 deciles).
+Client-side TypeScript library and browser dashboard for reconstructing continuous Lorenz curves from grouped census tables (such as 5 quintiles or 10 deciles) and computing inequality metrics including the Gini index, Palma ratio, Sen social welfare, poverty headcount, and Gastwirth bounds.
 
-All numerical solvers (tridiagonal Thomas algorithm, PCHIP shape-preserving splines, iterative convexity cone projection, analytical Pareto tail splicing, Simpson 1/3 quadrature, and root finders) are implemented from first principles with zero external runtime dependencies.
+The numerical routines (Thomas tridiagonal solver, Fritsch-Carlson PCHIP splines, convexity repair loop, closed-form Pareto tail splicing, Simpson 1/3 integration, and bracketed root finders) are written directly in TypeScript with no external runtime dependencies.
 
-## Key Features
+## What It Does
 
-- **Shape-Preserving Spline Interpolation**: Implements Piecewise Cubic Hermite Interpolating Polynomials (PCHIP) with Fritsch-Carlson harmonic tangents, strictly guaranteeing first-derivative monotonicity ($L'(p) \ge 0$).
-- **Automated Convexity Cone Repair**: An iterative projection protocol enforcing second-derivative non-negativity ($L''(p) \ge 0$), eliminating Runge oscillations and guaranteeing ordered marginal incomes.
-- **Analytical Asymptotic Tail Splicing**: Slices a heavy-tailed continuous Pareto distribution onto the non-parametric body at threshold $p^*$, matching levels and first derivatives at exact $C^1$ continuity without non-linear optimization loops.
-- **Certified Gastwirth Bounds**: Evaluates theoretical mathematical upper and lower bounds ($[G_L, G_U]$) to certify estimation accuracy against census data information loss.
-- **Zero Runtime Dependencies**: 100% vanilla TypeScript targeting ECMAScript 2022, compatible with modern web browsers and serverless runtimes.
-- **Sub-Millisecond Execution**: Evaluates full spline fitting, tail splicing, and quadrature integration in under 2.0 milliseconds.
+- Fits a shape-preserving PCHIP spline across the interior brackets so the curve stays monotone ($L'(p) \ge 0$) and passes through every input knot.
+- Runs an iterative slope-projection loop to enforce convexity ($L''(p) \ge 0$), preventing Runge oscillations and keeping marginal incomes non-decreasing.
+- Splices a Pareto Type I upper tail onto the spline at a threshold $p^_$, matching both $L(p^_)$ and $L'(p^*)$ in closed form without an iterative optimizer.
+- Computes distribution-free Gastwirth bounds ($[G_L, G_U]$) alongside every estimate to verify that the reconstructed Gini stays inside the feasible interval.
+- Runs entirely in the browser or Node.js (ES2022) with zero runtime packages, completing a full hybrid fit and integration pass in roughly 5 microseconds on decile tables.
 
 ## Requirements
 
-- Node.js (v18 or newer)
+- Node.js v18+
 - npm
 
 ## Setup
@@ -24,95 +23,97 @@ All numerical solvers (tridiagonal Thomas algorithm, PCHIP shape-preserving spli
 npm install
 ```
 
-## Running Tests
+## Common Commands
 
-Run the Vitest automated test suite:
+Run the test suite (Vitest):
 
 ```bash
 npm test
 ```
 
-Watch mode for interactive development:
+Run tests in watch mode:
 
 ```bash
 npm run test:watch
 ```
 
-## Build and Typecheck
-
-Compile TypeScript sources to JavaScript in `dist/`:
+Compile the library to `dist/` and check types:
 
 ```bash
 npm run build
-```
-
-Run static type checking with strict compiler options:
-
-```bash
 npm run typecheck
 ```
 
-## Running Performance Benchmarks
+Bundle the browser demo (`demo/app.js`):
 
-Run the 10,000-iteration execution latency benchmarks across quantile tiers:
+```bash
+npm run build:demo
+```
+
+Run the 10,000-iteration latency and empirical benchmarks:
 
 ```bash
 npm run benchmark
 ```
 
-## Project Architecture
+## Project Layout
 
 ```
 src/
 ├── core/
-│   ├── LorenzModel.ts         # Abstract base class for continuous Lorenz curves
+│   ├── LorenzModel.ts         # Abstract base class for Lorenz curve models
 │   ├── InequalityEngine.ts    # Facade for Gini, Palma, Sen welfare, and Gastwirth bounds
-│   ├── NumericalIntegrator.ts # Quadrature strategy interface
-│   ├── RootFinder.ts          # Root-finding strategy interface
-│   └── types.ts               # Core domain types and metric records
+│   ├── NumericalIntegrator.ts # Quadrature interface
+│   ├── RootFinder.ts          # Root-finding interface
+│   └── types.ts               # Shared domain types and result records
 ├── interpolation/
-│   ├── PchipLorenzCurve.ts       # Monotone Hermite splines with convexity cone repair
-│   └── CubicSplineLorenzCurve.ts # Classical C^2 cubic splines solved via Thomas algorithm
+│   ├── PchipLorenzCurve.ts       # PCHIP Hermite spline with convexity repair
+│   └── CubicSplineLorenzCurve.ts # Classical C^2 cubic spline via Thomas algorithm
 ├── tail/
-│   ├── HybridLorenzCurve.ts   # C^1 continuity tail splicing and closed-form alpha calibration
-│   └── ParetoLorenzCurve.ts   # Type-I Pareto Lorenz curve kernel
+│   ├── HybridLorenzCurve.ts   # C^1 Pareto tail splicing and closed-form alpha solver
+│   └── ParetoLorenzCurve.ts   # Standalone Type I Pareto Lorenz curve
 ├── integration/
-│   ├── SimpsonsIntegrator.ts    # Composite Simpson's 1/3 rule with even-interval enforcement
-│   └── TrapezoidalIntegrator.ts # Composite trapezoidal quadrature
+│   ├── SimpsonsIntegrator.ts    # Composite Simpson 1/3 rule
+│   └── TrapezoidalIntegrator.ts # Composite trapezoidal rule
 ├── solvers/
-│   ├── TridiagonalSolver.ts   # O(N) Thomas algorithm for tridiagonal linear systems
-│   ├── NewtonRaphsonSolver.ts # Safeguarded Newton-Raphson solver for headcount inversion
-│   └── BisectionSolver.ts     # Bracketing bisection root solver
+│   ├── TridiagonalSolver.ts   # O(N) Thomas algorithm
+│   ├── NewtonRaphsonSolver.ts # Safeguarded 1D Newton-Raphson solver
+│   └── BisectionSolver.ts     # Bracketing bisection fallback
 ├── data/
-│   ├── censusDatasets.ts      # Empirical census deciles (Bulgarian NSI, Eurostat, US CPS)
-│   └── DatasetParser.ts       # Multi-format CSV/TSV/JSON ingestion and normalization
+│   ├── censusDatasets.ts      # Built-in NSI 2022, Eurostat EU-27, and US CPS datasets
+│   └── DatasetParser.ts       # CSV, TSV, and JSON quantile parser
 ├── simulation/
-│   ├── SyntheticDistribution.ts     # Interface for analytical ground-truth distributions
-│   ├── LogNormalDistribution.ts     # Analytical Log-Normal benchmark distribution
-│   ├── SinghMaddalaDistribution.ts  # Analytical Singh-Maddala (Burr XII) distribution
-│   ├── DagumDistribution.ts         # Analytical Dagum (Burr III) distribution
-│   ├── syntheticDistributions.ts    # Synthetic distribution factory and registry
-│   └── specialFunctions.ts          # Lanczos log-Gamma, erf, and incomplete Beta routines
+│   ├── SyntheticDistribution.ts     # Interface for ground-truth distributions
+│   ├── LogNormalDistribution.ts     # Log-Normal distribution
+│   ├── SinghMaddalaDistribution.ts  # Singh-Maddala (Burr XII) distribution
+│   ├── DagumDistribution.ts         # Dagum (Burr III) distribution
+│   ├── syntheticDistributions.ts    # Distribution registry
+│   └── specialFunctions.ts          # Lanczos log-Gamma, erf, and incomplete Beta
 ├── regression/
-│   ├── KakwaniPodderCurve.ts        # Parametric Kakwani-Podder (1976) Lorenz curve
-│   └── ConsumptionRegressor.ts      # Ordinary least squares consumption regression
+│   ├── KakwaniPodderCurve.ts        # Parametric Kakwani-Podder (1976) baseline
+│   └── ConsumptionRegressor.ts      # OLS consumption regression
 └── diagnostics/
-    ├── SensitivityAnalyzer.ts       # Poverty elasticities, Pareto sweeps, and WID benchmarks
-    ├── DownsamplingStressTester.ts  # Coarsening stress tests (deciles down to tertiles)
-    └── ModelSelectionEvaluator.ts   # AIC, AICc, BIC, Akaike weights, and knot optimization
+    ├── SensitivityAnalyzer.ts       # Poverty elasticities, Pareto sweeps, and WID checks
+    ├── DownsamplingStressTester.ts  # Coarsening tests from deciles down to tertiles
+    └── ModelSelectionEvaluator.ts   # AIC, AICc, BIC, Akaike weights, and p* search
 demo/
-├── index.html                 # Interactive browser dashboard UI
-├── style.css                  # Dashboard stylesheet
-└── src/                       # Client-side TypeScript chart and table controllers
+├── index.html                 # Interactive browser UI
+├── style.css                  # Main stylesheet entry point
+├── styles/                    # Modular CSS (layout, forms, tables, charts)
+└── src/                       # Browser TypeScript controllers and Canvas 2D charts
+benchmarks/
+├── runBenchmarks.ts           # Benchmark entry point
+├── latencyBenchmarks.ts       # 10,000-iteration timing suite
+└── empiricalBenchmarks.ts     # Cross-country WIID and census accuracy checks
 ```
 
-## Developer's Guide: Building Custom Simulations
+## Adding a Custom Synthetic Distribution
 
-You can extend the engine with your own parametric or empirical ground-truth income distributions without touching the core solvers or quadrature pipeline.
+New ground-truth distributions can be added under `src/simulation/` without changing the spline, tail, or integration code.
 
 ### 1. Implement `SyntheticDistribution`
 
-Create a new class in `src/simulation/` (for example, `src/simulation/ParetoWeibullDistribution.ts`) implementing the [`SyntheticDistribution`](src/simulation/SyntheticDistribution.ts) interface:
+Create a class implementing [`SyntheticDistribution`](src/simulation/SyntheticDistribution.ts):
 
 ```ts
 import { QuantileDataset, QuantilePoint } from "../core/types.js";
@@ -146,11 +147,9 @@ export class CustomPowerDistribution implements SyntheticDistribution {
 }
 ```
 
-Re-export your class from `src/simulation/index.ts` so it is available from the package root.
+Export the new class from `src/simulation/index.ts` to make it available at the package root.
 
-### 2. Evaluate Reconstruction Error and Gastwirth Bounds
-
-Feed the sampled quantiles into any `LorenzModel` and `InequalityEngine`:
+### 2. Run Error and Bounds Checks
 
 ```ts
 import {
@@ -162,7 +161,7 @@ import {
 } from "./src/index.js";
 
 const dist = new CustomPowerDistribution(2.2);
-const dataset = dist.sampleQuantiles(10, 30000); // 10 deciles
+const dataset = dist.sampleQuantiles(10, 30000);
 
 const hybrid = new HybridLorenzCurve(dataset);
 const engine = new InequalityEngine(hybrid, new SimpsonsIntegrator(), new NewtonRaphsonSolver());
@@ -180,22 +179,22 @@ console.log({
 });
 ```
 
-### 3. Verify and Test
+### 3. Verify Before Committing
 
-Add unit tests in `tests/` checking boundary anchors `(0, 0)` and `(1, 1)`, monotonicity/convexity, and Gini convergence as `k` increases, then run the full quality gate:
+Add tests under `tests/` covering the `(0, 0)` and `(1, 1)` anchors, convexity, and Gini convergence as `k` grows, then run:
 
 ```bash
 npm run format:check
 npm run typecheck
 npm run lint
-npm run test:coverage   # enforces 100% statements/branches/functions/lines in src/
+npm run test:coverage
 npm run build
 npm run build:demo
 ```
 
 ## Academic Context
 
-Developed as a Senior Project and Diploma Thesis in Computer Science (COS 4091) at the American University in Bulgaria (AUBG), Department of Computer Science.
+Built for the COS 4091 Senior Diploma Thesis at the American University in Bulgaria (AUBG), Department of Computer Science.
 
-- Author: Atanas Bobev (Student ID: 200239539)
-- Academic Supervisor: Prof. Dr. Narasimha Rao Vajjhala, Chair, Department of Computer Science
+- Author: Atanas Bobev (ID: 200239539)
+- Supervisor: Dr. Narasimha Rao Vajjhala, Chair, Department of Computer Science

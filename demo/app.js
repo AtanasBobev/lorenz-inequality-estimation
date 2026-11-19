@@ -55,7 +55,7 @@
       if (p > 1) return 1;
       return p;
     }
-    // Binary search for the knot bracket [p_i, p_{i+1}) containing p.
+    // Binary search for the knot bracket [p_i, p_{i+1}) containing p
     findKnotInterval(p) {
       const knotCount = this.points.length;
       if (p <= this.points[0].populationShare) {
@@ -81,8 +81,8 @@
     getDataset() {
       return this.dataset;
     }
-    // Ensures knots are anchored at (0,0) and (1,1) with strictly increasing p and non-decreasing L.
-    // TODO: Allow negative L(p) coordinates in the lower tail so we can fit net wealth datasets with household debt.
+    // Ensure knots are anchored at (0,0) and (1,1) with strictly increasing p and non-decreasing L
+    // TODO: Allow negative L(p) coordinates in the lower tail so we can fit net wealth datasets with household debt
     validateDataset(dataset) {
       if (!dataset.points || dataset.points.length < 2) {
         throw new Error("Quantile dataset must contain at least 2 points.");
@@ -160,8 +160,8 @@
     getIncomeAtPercentile(p) {
       return this.model.quantileIncome(p);
     }
-    // Solves mu * L'(H) = povertyLine using safeguarded Newton-Raphson with bisection fallback.
-    // TODO: Support Foster-Greer-Thorbecke (FGT) poverty gap (alpha=1) and severity (alpha=2) integrals.
+    // Solve mu * L'(H) = povertyLine using safeguarded Newton-Raphson with bisection fallback
+    // TODO: Support Foster-Greer-Thorbecke (FGT) poverty gap (alpha=1) and severity (alpha=2) integrals
     getPovertyHeadcount(povertyLine, meanIncome, tolerance = 1e-7, maxIterations = 60) {
       if (povertyLine <= 0) {
         return 0;
@@ -217,8 +217,8 @@
       }
       return 0.5 * (leftBound + rightBound);
     }
-    // Checks that the estimated Gini falls inside Gastwirth's (1972) distribution-free bounds [G_L, G_U].
-    // TODO: Add non-parametric bootstrap resampling to estimate confidence intervals alongside [G_L, G_U].
+    // Check the estimated Gini falls inside Gastwirth's (1972) distribution-free bounds [G_L, G_U]
+    // TODO: Add non-parametric bootstrap resampling to estimate confidence intervals alongside [G_L, G_U]
     certifyGastwirthBounds(estimatedGini) {
       const dataset = this.model.getDataset();
       const points = dataset.points;
@@ -253,7 +253,7 @@
         maxError
       };
     }
-    // Computes income shares held by standard policy brackets (top 10%/5%/1%, bottom 40%/50%, middle 40%).
+    // Compute income shares held by standard policy brackets (top 10%/5%/1%, bottom 40%/50%, middle 40%)
     computeTopIncomeShares() {
       const shareAt40 = this.model.evaluate(0.4);
       const shareAt50 = this.model.evaluate(0.5);
@@ -273,7 +273,7 @@
         middle40PercentShare: Math.max(0, Math.min(1, shareAt90 - shareAt50))
       };
     }
-    // Computes Kakwani poverty headcount elasticities with respect to poverty line z and mean income mu.
+    // Compute Kakwani poverty headcount elasticities with respect to poverty line z and mean income mu
     computePovertyElasticities(povertyLine, meanIncome) {
       const effectiveMean = meanIncome ?? this.model.getDataset().meanIncome;
       if (effectiveMean <= 0) {
@@ -319,7 +319,7 @@
         elasticityMu
       };
     }
-    // Evaluates complete inequality metrics including Gini, Sen index, Palma ratio, and bounds.
+    // Evaluate complete inequality metrics including Gini, Sen index, Palma ratio, and bounds
     computeComprehensiveMetrics(stepCount = 200, povertyLine) {
       const giniResult = this.computeGini(stepCount);
       const senWelfare = this.computeSenWelfare(stepCount);
@@ -1469,7 +1469,7 @@
       }
       return 0.8;
     }
-    // Solves (1 - L*) / (1 - p*) * (1 - 1/alpha) = L'(p*) for alpha, clamping if L'(p*) >= secant slope.
+    // Solve (1 - L*) / (1 - p*) * (1 - 1/alpha) = L'(p*) for alpha, clamping if L'(p*) >= secant slope
     computeAnalyticalAlpha(pStar, lStar, dStar) {
       const remainingPop = 1 - pStar;
       const remainingIncome = 1 - lStar;
@@ -1515,7 +1515,7 @@
   var SensitivityAnalyzer = class {
     static integrator = new SimpsonsIntegrator();
     static rootFinder = new BisectionSolver();
-    // Scans Pareto splicing knot p* across [startP, endP] and records Gini, alpha, and curvature jump.
+    // Scans Pareto splicing knot p* across [startP, endP] and records Gini, alpha, and curvature jump
     static sweepParetoSplice(dataset, startP = 0.6, endP = 0.95, stepSize = 0.05, bodyModelType = "pchip") {
       const records = [];
       const baseSpline = bodyModelType === "cubicspline" ? new CubicSplineLorenzCurve(dataset) : new PchipLorenzCurve(dataset);
@@ -1551,17 +1551,17 @@
       }
       return records;
     }
-    // Analyzes poverty headcount sensitivity across varying thresholds.
+    // Analyzes poverty headcount sensitivity across varying thresholds
     static computePovertySensitivityTable(model, povertyLines, meanIncome) {
       const engine = new InequalityEngine(model, this.integrator, this.rootFinder);
       return povertyLines.map((line) => engine.computePovertyElasticities(line, meanIncome));
     }
-    // Decomposes high-net-worth upper-tail wealth shares.
+    // Decomposes high-net-worth upper-tail wealth shares
     static decomposeTopWealth(model) {
       const engine = new InequalityEngine(model, this.integrator, this.rootFinder);
       return engine.computeTopIncomeShares();
     }
-    // Compares model reconstructed top-income shares against official World Inequality Database (WID) benchmarks.
+    // Compares model reconstructed top-income shares against official World Inequality Database (WID) benchmarks
     static compareWithWID(datasetKey, splineModel, hybridModel) {
       const wid = WID_BENCHMARKS[datasetKey];
       if (!wid) {
@@ -1592,7 +1592,7 @@
   // src/diagnostics/ModelSelectionEvaluator.ts
   var ModelSelectionEvaluator = class {
     static EPSILON_RSS = 1e-14;
-    // Gaussian log-likelihood: ln(L) = -0.5*n*ln(2*pi) - 0.5*n*ln(RSS/n) - 0.5*n.
+    // Gaussian log-likelihood: ln(L) = -0.5*n*ln(2*pi) - 0.5*n*ln(RSS/n) - 0.5*n
     static computeLogLikelihood(sampleSize, rss) {
       if (sampleSize <= 0) {
         throw new Error("Sample size must be strictly positive.");
@@ -1600,12 +1600,12 @@
       const clampedRss = Math.max(rss, this.EPSILON_RSS);
       return -0.5 * sampleSize * Math.log(2 * Math.PI) - 0.5 * sampleSize * Math.log(clampedRss / sampleSize) - 0.5 * sampleSize;
     }
-    // Standard Akaike Information Criterion: AIC = 2*k - 2*ln(L).
+    // Standard Akaike Information Criterion: AIC = 2*k - 2*ln(L)
     static computeAIC(sampleSize, rss, paramCount) {
       const logLikelihood = this.computeLogLikelihood(sampleSize, rss);
       return 2 * paramCount - 2 * logLikelihood;
     }
-    // Hurvich-Tsai small-sample correction: AICc = AIC + 2*k*(k+1) / (n - k - 1).
+    // Hurvich-Tsai small-sample correction: AICc = AIC + 2*k*(k+1) / (n - k - 1)
     static computeAICc(sampleSize, rss, paramCount) {
       const aic = this.computeAIC(sampleSize, rss, paramCount);
       const degreesOfFreedom = sampleSize - paramCount - 1;
@@ -1614,12 +1614,12 @@
       }
       return aic + 2 * paramCount * (paramCount + 1) / degreesOfFreedom;
     }
-    // Schwarz Bayesian Information Criterion: BIC = k*ln(n) - 2*ln(L).
+    // Schwarz Bayesian Information Criterion: BIC = k*ln(n) - 2*ln(L)
     static computeBIC(sampleSize, rss, paramCount) {
       const logLikelihood = this.computeLogLikelihood(sampleSize, rss);
       return paramCount * Math.log(sampleSize) - 2 * logLikelihood;
     }
-    // Computes residual fit metrics and information criteria for one fitted Lorenz model.
+    // Compute residual fit metrics and information criteria for one fitted Lorenz model
     static evaluateModel(dataset, model, parameterCount, modelName = "LorenzModel") {
       const points = dataset.points;
       const sampleSize = points.length;
@@ -1669,7 +1669,7 @@
         evidenceRatio: 1
       };
     }
-    // Ranks candidate models by AICc and computes Akaike weights and evidence ratios.
+    // Ranks candidate models by AICc and computes Akaike weights and evidence ratios
     static compareModels(dataset, candidates) {
       if (candidates.length === 0) {
         return [];
@@ -1704,7 +1704,7 @@
       });
       return rankedResults.sort((a, b) => a.deltaAic - b.deltaAic);
     }
-    // Searches candidate splicing knots p* for the best trade-off between AICc fit and curvature jump.
+    // Searches candidate splicing knots p* for the best trade-off between AICc fit and curvature jump
     static findOptimalKnot(dataset, options = {}) {
       const candidateKnots = options.candidateKnots ?? [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95];
       const curvatureWeight = options.curvatureWeight ?? 2;
@@ -2763,7 +2763,7 @@
         cb.recompute();
         const btn = el2.btnAutoRepair;
         const origText = btn.textContent || "Auto-Repair Knots";
-        btn.textContent = "\u2713 Repaired";
+        btn.textContent = "Repaired";
         btn.classList.add("btn-outline-light");
         btn.classList.remove("btn-dark");
         setTimeout(() => {
@@ -2830,7 +2830,7 @@
           const optKnot = msResult.knotOptimization.optimalKnot;
           cb.syncSplicingThreshold(optKnot);
           if (el2.badgeOptimalKnot) {
-            el2.badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} (Score: ${msResult.knotOptimization.minScore.toFixed(1)}, \u03B1: ${msResult.knotOptimization.optimalAlpha.toFixed(2)})`;
+            el2.badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} | Score ${msResult.knotOptimization.minScore.toFixed(1)}, \u03B1 = ${msResult.knotOptimization.optimalAlpha.toFixed(2)}`;
             el2.badgeOptimalKnot.style.display = "inline-block";
           }
           cb.recompute();
@@ -2941,6 +2941,10 @@
     if (el.rangeSplice) {
       el.rangeSplice.value = formatted;
       el.rangeSplice.setAttribute("value", formatted);
+      el.rangeSplice.setAttribute("aria-valuetext", formatted);
+      el.rangeSplice.style.setProperty("--attr-min", el.rangeSplice.min || "0.60");
+      el.rangeSplice.style.setProperty("--attr-max", el.rangeSplice.max || "0.95");
+      el.rangeSplice.style.setProperty("--control-value", formatted);
     }
     if (el.numSplice) {
       el.numSplice.value = formatted;

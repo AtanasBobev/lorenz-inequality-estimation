@@ -116,7 +116,7 @@ export function bindDemoEvents(el: DemoElements, state: AppState, cb: EventHandl
 
       const btn = el.btnAutoRepair!;
       const origText = btn.textContent || "Auto-Repair Knots";
-      btn.textContent = "✓ Repaired";
+      btn.textContent = "Repaired";
       btn.classList.add("btn-outline-light");
       btn.classList.remove("btn-dark");
       setTimeout(() => {
@@ -187,7 +187,7 @@ export function bindDemoEvents(el: DemoElements, state: AppState, cb: EventHandl
         const optKnot = msResult.knotOptimization.optimalKnot;
         cb.syncSplicingThreshold(optKnot);
         if (el.badgeOptimalKnot) {
-          el.badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} (Score: ${msResult.knotOptimization.minScore.toFixed(1)}, α: ${msResult.knotOptimization.optimalAlpha.toFixed(2)})`;
+          el.badgeOptimalKnot.textContent = `Optimal p* = ${optKnot.toFixed(2)} | Score ${msResult.knotOptimization.minScore.toFixed(1)}, α = ${msResult.knotOptimization.optimalAlpha.toFixed(2)}`;
           el.badgeOptimalKnot.style.display = "inline-block";
         }
         cb.recompute();

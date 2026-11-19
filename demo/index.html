@@ -145,28 +145,20 @@
               </div>
 
               <div class="mb-3 splice-control-box">
-                <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="splice-header mb-2">
                   <label for="rangeSplice" class="form-label mb-0"
                     >Pareto Tail Splicing Knot (p*)</label
                   >
-                  <div class="d-flex align-items-center gap-1">
-                    <span class="text-muted" style="font-size: 0.75rem; font-weight: 500"
-                      >p* =</span
-                    >
+                  <div class="splice-value-input">
+                    <span class="text-muted splice-value-prefix">p* =</span>
                     <input
                       type="number"
                       id="numSplice"
-                      class="form-control form-control-sm text-center font-monospace"
+                      class="form-control form-control-sm text-center font-monospace splice-number"
                       min="0.60"
                       max="0.95"
                       step="0.01"
-                      value="0.80"
-                      style="
-                        width: 70px;
-                        padding: 0.2rem 0.4rem;
-                        font-weight: 600;
-                        font-size: 0.8125rem;
-                      "
+                      value="0.90"
                     />
                   </div>
                 </div>
@@ -178,26 +170,39 @@
                   max="0.95"
                   step="0.01"
                   value="0.90"
+                  aria-valuetext="0.90"
                 />
-                <div class="d-flex justify-content-between text-muted splice-ticks">
-                  <span>0.60 (Coarse)</span>
-                  <span>0.80 (Quintiles)</span>
-                  <span>0.90 (Deciles)</span>
-                  <span>0.95 (Ventiles)</span>
+                <div class="splice-ticks" aria-hidden="true">
+                  <div class="splice-tick splice-tick-start">
+                    <span class="splice-tick-num">0.60</span>
+                    <span class="splice-tick-label">Coarse</span>
+                  </div>
+                  <div class="splice-tick">
+                    <span class="splice-tick-num">0.80</span>
+                    <span class="splice-tick-label">Quintiles</span>
+                  </div>
+                  <div class="splice-tick">
+                    <span class="splice-tick-num">0.90</span>
+                    <span class="splice-tick-label">Deciles</span>
+                  </div>
+                  <div class="splice-tick splice-tick-end">
+                    <span class="splice-tick-num">0.95</span>
+                    <span class="splice-tick-label">Ventiles</span>
+                  </div>
                 </div>
-                <div class="mt-2 d-flex justify-content-between align-items-center">
+                <div class="splice-actions">
                   <button
                     id="btnAutoSelectKnot"
-                    class="btn btn-sm btn-outline-dark"
-                    style="font-size: 0.75rem; padding: 0.2rem 0.55rem"
+                    type="button"
+                    class="btn btn-sm btn-outline-dark splice-auto-btn"
                     title="Optimize knot using penalized AICc and C^2 curvature continuity"
                   >
                     Auto-Select Knot (p*)
                   </button>
                   <span
                     id="badgeOptimalKnot"
-                    class="badge badge-dark"
-                    style="font-size: 0.7rem; display: none"
+                    class="badge badge-dark splice-result-badge"
+                    style="display: none"
                   ></span>
                 </div>
               </div>
