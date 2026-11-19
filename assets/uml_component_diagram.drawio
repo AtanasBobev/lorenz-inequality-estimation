@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="Electron">
+  <diagram name="UML" id="uml1">
+    <mxGraphModel dx="1140" dy="750" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1140" pageHeight="750" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="2" value="«component»&lt;br&gt;&lt;b&gt;Interactive Web UI (demo/src/*)&lt;/b&gt;&lt;hr style='border-top:1px solid #000000'&gt;- main.ts, eventHandlers.ts, domElements.ts&lt;br&gt;- validation.ts (monotonicity guard &amp;amp; autoRepair)&lt;br&gt;- metricsRenderer.ts (XSS-safe createElement DOM)&lt;br&gt;- lorenzChart.ts, derivativeChart.ts (HTML5 Canvas 2D)" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;verticalAlign=top;align=left;spacingLeft=12;spacingRight=36;spacingTop=10;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="480" height="165" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" value="" style="shape=module;jettyWidth=8;jettyHeight=4;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.2;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="490" y="28" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="«component»&lt;br&gt;&lt;b&gt;Benchmark &amp;amp; Test Harness (benchmarks/*, tests/*)&lt;/b&gt;&lt;hr style='border-top:1px solid #000000'&gt;- runBenchmarks.ts, latencyBenchmarks.ts (10k profiler)&lt;br&gt;- empiricalBenchmarks.ts (WIID 16-country, WID, NSI/CPS)&lt;br&gt;- 17 Vitest suites, 105 test cases, 100% src/ coverage" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;verticalAlign=top;align=left;spacingLeft=12;spacingRight=36;spacingTop=10;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="20" width="490" height="165" as="geometry"/>
+        </mxCell>
+        <mxCell id="5" value="" style="shape=module;jettyWidth=8;jettyHeight=4;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.2;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="28" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="6" value="«component»&lt;br&gt;&lt;b&gt;Data Ingestion (src/data/*)&lt;/b&gt;&lt;hr style='border-top:1px solid #000000'&gt;- DatasetParser.ts (CSV/TSV/JSON parse)&lt;br&gt;- censusDatasets.ts (NSI, EU-27, CPS)&lt;br&gt;- Enforces 0 = p_0 &amp;lt; ... &amp;lt; p_k = 1, L(p) &amp;lt;= p&lt;br&gt;- In-memory QuantileDataset (no DB)" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;verticalAlign=top;align=left;spacingLeft=12;spacingRight=36;spacingTop=10;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="265" width="340" height="165" as="geometry"/>
+        </mxCell>
+        <mxCell id="7" value="" style="shape=module;jettyWidth=8;jettyHeight=4;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.2;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="350" y="273" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="8" value="«component»&lt;br&gt;&lt;b&gt;Core Orchestration Facade (src/core/*)&lt;/b&gt;&lt;hr style='border-top:1px solid #000000'&gt;- InequalityEngine.ts (Gini, Palma, Sen, headcount H, elasticities)&lt;br&gt;- Gastwirth bounds certification [G_L, G_U]&lt;br&gt;- LorenzModel.ts (abstract evaluate, derivative, isConvex contract)&lt;br&gt;- NumericalIntegrator, RootFinder, types.ts interfaces" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;verticalAlign=top;align=left;spacingLeft=12;spacingRight=36;spacingTop=10;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="430" y="265" width="660" height="165" as="geometry"/>
+        </mxCell>
+        <mxCell id="9" value="" style="shape=module;jettyWidth=8;jettyHeight=4;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.2;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="273" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="10" value="«component»&lt;br&gt;&lt;b&gt;Interpolation &amp;amp; Tail Kernels&lt;/b&gt;&lt;hr style='border-top:1px solid #000000'&gt;src/interpolation/*, src/tail/*, src/regression/*&lt;br&gt;- PchipLorenzCurve (Fritsch-Carlson + repair)&lt;br&gt;- CubicSplineLorenzCurve (C^2 natural/clamped)&lt;br&gt;- HybridLorenzCurve (C^1 Pareto splice)&lt;br&gt;- ParetoLorenzCurve &amp;amp; KakwaniPodderCurve" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;verticalAlign=top;align=left;spacingLeft=12;spacingRight=36;spacingTop=10;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="340" height="195" as="geometry"/>
+        </mxCell>
+        <mxCell id="11" value="" style="shape=module;jettyWidth=8;jettyHeight=4;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.2;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="350" y="528" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="12" value="«component»&lt;br&gt;&lt;b&gt;Solvers &amp;amp; Quadrature&lt;/b&gt;&lt;hr style='border-top:1px solid #000000'&gt;src/solvers/*, src/integration/*&lt;br&gt;- TridiagonalSolver (O(N) Thomas LU)&lt;br&gt;- NewtonRaphsonSolver (damped 1D root)&lt;br&gt;- BisectionSolver (guaranteed bracket)&lt;br&gt;- SimpsonsIntegrator (O(h^4) even M)" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;verticalAlign=top;align=left;spacingLeft=12;spacingRight=36;spacingTop=10;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="405" y="520" width="330" height="195" as="geometry"/>
+        </mxCell>
+        <mxCell id="13" value="" style="shape=module;jettyWidth=8;jettyHeight=4;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.2;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="705" y="528" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="14" value="«component»&lt;br&gt;&lt;b&gt;Simulation &amp;amp; Diagnostics&lt;/b&gt;&lt;hr style='border-top:1px solid #000000'&gt;src/simulation/*, src/diagnostics/*&lt;br&gt;- LogNormal, Dagum, SinghMaddala dists&lt;br&gt;- specialFunctions.ts (erf, logGamma, beta)&lt;br&gt;- ModelSelectionEvaluator (AICc, BIC, p*)&lt;br&gt;- SensitivityAnalyzer, DownsamplingStress" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;verticalAlign=top;align=left;spacingLeft=12;spacingRight=36;spacingTop=10;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="760" y="520" width="330" height="195" as="geometry"/>
+        </mxCell>
+        <mxCell id="15" value="" style="shape=module;jettyWidth=8;jettyHeight=4;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.2;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="528" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="16" value="«uses» parser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.2;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=0.35;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="2" target="6">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="17" value="«uses» engineBridge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.2;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=0.9;exitY=1;entryX=0.06;entryY=0;" edge="1" parent="1" source="2" target="8">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="18" value="«exercises» API &amp; invariants" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.2;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=0.5;exitY=1;entryX=0.63;entryY=0;" edge="1" parent="1" source="4" target="8">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="19" value="«feeds»" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.2;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="6" target="8">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="20" value="«delegates» LorenzModel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.2;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=0.08;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="8" target="10">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="483" y="470"/><mxPoint x="210" y="470"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="21" value="«uses» Integrator / RootFinder" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.2;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=0.21;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="8" target="12">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="22" value="«audits» AICc &amp; stress" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.2;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=0.75;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="8" target="14">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.2;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="10" target="12">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

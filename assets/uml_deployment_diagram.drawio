@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="Electron">
+  <diagram name="UML" id="uml1">
+    <mxGraphModel dx="1310" dy="610" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1310" pageHeight="610" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="2" value="«device»&lt;br&gt;&lt;b&gt;Developer &amp;amp; CI Workstation&lt;/b&gt;" style="verticalAlign=top;align=center;shape=cube;size=14;direction=east;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;spacingTop=8;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="340" height="560" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" value="«executionEnvironment»&lt;br&gt;Node.js &amp;gt;= 20 + npm" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="42" y="85" width="290" height="470" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="«artifact»&lt;br&gt;&lt;b&gt;TypeScript Compiler (tsc)&lt;/b&gt;&lt;br&gt;strict: true, tsconfig.check.json" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="56" y="130" width="262" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="5" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="298" y="136" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="6" value="«artifact»&lt;br&gt;&lt;b&gt;esbuild Bundler&lt;/b&gt;&lt;br&gt;Bundles demo/app.js (111.2 kB IIFE)" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="56" y="212" width="262" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="7" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="298" y="218" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="8" value="«artifact»&lt;br&gt;&lt;b&gt;Vitest Runner (npm test)&lt;/b&gt;&lt;br&gt;17 suites, 105 tests, 100% src/ cov" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="56" y="294" width="262" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="9" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="298" y="300" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="10" value="«artifact»&lt;br&gt;&lt;b&gt;ESLint + Prettier CI&lt;/b&gt;&lt;br&gt;Static type &amp;amp; formatting gates" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="56" y="376" width="262" height="68" as="geometry"/>
+        </mxCell>
+        <mxCell id="11" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="298" y="382" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="12" value="«artifact»&lt;br&gt;&lt;b&gt;dist/ Library Artifacts&lt;/b&gt;&lt;br&gt;dist/index.{mjs,cjs,d.ts} &amp;amp; CLI" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="56" y="458" width="262" height="74" as="geometry"/>
+        </mxCell>
+        <mxCell id="13" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="298" y="464" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="14" value="«device»&lt;br&gt;&lt;b&gt;Static Web Host / CDN&lt;/b&gt;" style="verticalAlign=top;align=center;shape=cube;size=14;direction=east;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;spacingTop=8;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="480" y="20" width="320" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="15" value="«executionEnvironment»&lt;br&gt;Static HTTP File Server" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="502" y="85" width="270" height="165" as="geometry"/>
+        </mxCell>
+        <mxCell id="16" value="«artifact»&lt;br&gt;&lt;b&gt;demo/index.html &amp;amp; style.css&lt;/b&gt;&lt;br&gt;Static markup &amp;amp; modular CSS" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="516" y="128" width="242" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="17" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="738" y="134" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="18" value="«artifact»&lt;br&gt;&lt;b&gt;demo/app.js (111.2 kB)&lt;/b&gt;&lt;br&gt;Zero-dependency client bundle" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="516" y="188" width="242" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="19" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="738" y="194" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="20" value="«architecture constraint»&lt;br&gt;&lt;b&gt;No Database / No Server API&lt;/b&gt;&lt;br&gt;&lt;br&gt;- Zero SQL/NoSQL tables (no E-R schema).&lt;br&gt;- All census data stays in client RAM.&lt;br&gt;- Local CSV/JSON read via FileReader API.&lt;br&gt;- DOM XSS safe: textContent / createElement.&lt;br&gt;- GDPR data-minimization compliant." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=14;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="340" width="320" height="190" as="geometry"/>
+        </mxCell>
+        <mxCell id="21" value="«device»&lt;br&gt;&lt;b&gt;End-User Client Workstation&lt;/b&gt;" style="verticalAlign=top;align=center;shape=cube;size=14;direction=east;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;darkOpacity2=0.1;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;spacingTop=8;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="920" y="20" width="350" height="560" as="geometry"/>
+        </mxCell>
+        <mxCell id="22" value="«executionEnvironment»&lt;br&gt;Web Browser (V8 / ES2022)" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="942" y="85" width="300" height="470" as="geometry"/>
+        </mxCell>
+        <mxCell id="23" value="«artifact»&lt;br&gt;&lt;b&gt;Loaded demo/app.js Engine&lt;/b&gt;&lt;br&gt;PCHIP, Pareto splice &amp;amp; Simpson 1/3" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="956" y="130" width="272" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="24" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1208" y="136" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="25" value="«artifact»&lt;br&gt;&lt;b&gt;HTML5 Canvas 2D Context&lt;/b&gt;&lt;br&gt;Lorenz curve, Gastwirth box &amp;amp; L&#x27;(p)" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="956" y="214" width="272" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="26" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1208" y="220" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="27" value="«artifact»&lt;br&gt;&lt;b&gt;Safe DOM &amp;amp; Validation UI&lt;/b&gt;&lt;br&gt;textContent &amp;amp; createElement updates" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="956" y="298" width="272" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="28" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1208" y="304" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="29" value="«artifact»&lt;br&gt;&lt;b&gt;Ephemeral Client Memory&lt;/b&gt;&lt;br&gt;Float64Array buffers (cleared on close)" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="956" y="382" width="272" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="30" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1208" y="388" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="31" value="«artifact»&lt;br&gt;&lt;b&gt;Local FileSystem (Optional)&lt;/b&gt;&lt;br&gt;CSV/TSV/JSON read locally via FileReader" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingRight=26;spacingTop=6;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="956" y="466" width="272" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="32" value="" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=5;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1208" y="472" width="12" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="33" value="«deploy»" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.5;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=1;exitY=0.25;entryX=0;entryY=0.56;" edge="1" parent="1" source="2" target="14">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="34" value="«HTTPS»" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.5;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=1;exitY=0.56;entryX=0;entryY=0.25;" edge="1" parent="1" source="14" target="21">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="35" value="«enforces»" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=open;endFill=0;strokeColor=#000000;strokeWidth=1.5;fontColor=#000000;labelBackgroundColor=#ffffff;fontFamily=Helvetica;fontSize=11;exitX=1;exitY=0.5;entryX=0;entryY=0.74;" edge="1" parent="1" source="20" target="21">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

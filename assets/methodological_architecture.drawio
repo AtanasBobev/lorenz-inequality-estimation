@@ -1,0 +1,55 @@
+<mxfile host="Electron" agent="draw.io" version="24.0.0">
+  <diagram name="Diagram" id="mono-diag">
+    <mxGraphModel dx="1280" dy="510" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="510" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="2" value="&lt;b&gt;End-to-End Methodological Architecture of the Hybrid Lorenz Estimation Framework&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=0;strokeColor=none;fillColor=none;fontColor=#000000;fontFamily=Helvetica;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="30" y="14" width="1220" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" value="STAGE 1&lt;br&gt;Input Censoring" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;startSize=46;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="25" y="70" width="230" height="415" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="&lt;b&gt;Discrete Census Tables&lt;/b&gt;&lt;br&gt;- 5 Quintiles / 10 Deciles&lt;br&gt;- Mean income (mu)&lt;br&gt;- Group boundaries&lt;br&gt;&lt;br&gt;&lt;b&gt;Grouping Challenges&lt;/b&gt;&lt;br&gt;- Top-coded tail&lt;br&gt;- Information void&lt;br&gt;- Privacy restrictions (GDPR)" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=top;spacingTop=14;spacingLeft=10;spacingRight=10;whiteSpace=wrap;html=1;fontColor=#000000;fontFamily=Helvetica;fontSize=11;lineHeight=140;" vertex="1" parent="3">
+          <mxGeometry y="46" width="230" height="369" as="geometry"/>
+        </mxCell>
+        <mxCell id="5" value="STAGE 2&lt;br&gt;Hybrid Numerical Engine" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;startSize=46;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="305" y="70" width="390" height="415" as="geometry"/>
+        </mxCell>
+        <mxCell id="6" value="&lt;b&gt;Interior Regime: p in [0, p*]&lt;/b&gt;" style="swimlane;fontStyle=0;align=center;verticalAlign=middle;startSize=32;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="5">
+          <mxGeometry x="20" y="66" width="350" height="155" as="geometry"/>
+        </mxCell>
+        <mxCell id="7" value="- Local Hermite spline (PCHIP)&lt;br&gt;- Fritsch-Carlson-Butland 3-pt stencil&lt;br&gt;- Convexity cone projection repair&lt;br&gt;- Avoids global matrix inversion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingTop=10;spacingLeft=14;spacingRight=10;whiteSpace=wrap;html=1;fontColor=#000000;fontFamily=Helvetica;fontSize=11;lineHeight=145;" vertex="1" parent="6">
+          <mxGeometry y="32" width="350" height="123" as="geometry"/>
+        </mxCell>
+        <mxCell id="8" value="&lt;b&gt;Tail Regime: p in (p*, 1.0]&lt;/b&gt;" style="swimlane;fontStyle=0;align=center;verticalAlign=middle;startSize=32;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.2;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="5">
+          <mxGeometry x="20" y="238" width="350" height="155" as="geometry"/>
+        </mxCell>
+        <mxCell id="9" value="- Analytical Pareto power law&lt;br&gt;- Asymptotic marginal divergence (p -&amp;gt; 1)&lt;br&gt;- C^1 continuity derivative matching&lt;br&gt;- Closed-form alpha calibration" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingTop=10;spacingLeft=14;spacingRight=10;whiteSpace=wrap;html=1;fontColor=#000000;fontFamily=Helvetica;fontSize=11;lineHeight=145;" vertex="1" parent="8">
+          <mxGeometry y="32" width="350" height="123" as="geometry"/>
+        </mxCell>
+        <mxCell id="10" value="STAGE 3&lt;br&gt;Bounds &amp;amp; Verification" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;startSize=46;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="745" y="70" width="235" height="415" as="geometry"/>
+        </mxCell>
+        <mxCell id="11" value="&lt;b&gt;Gastwirth Bounds&lt;/b&gt;&lt;br&gt;- G_L &amp;lt;= G &amp;lt;= G_U&lt;br&gt;- Certified envelope&lt;br&gt;&lt;br&gt;&lt;b&gt;Convexity Check&lt;/b&gt;&lt;br&gt;- L&#x27;&#x27;(p) &amp;gt;= 0 everywhere&lt;br&gt;&lt;br&gt;&lt;b&gt;Downsample Stress&lt;/b&gt;&lt;br&gt;- Microdata benchmarks&lt;br&gt;- Error decay rate" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=top;spacingTop=14;spacingLeft=10;spacingRight=10;whiteSpace=wrap;html=1;fontColor=#000000;fontFamily=Helvetica;fontSize=11;lineHeight=140;" vertex="1" parent="10">
+          <mxGeometry y="46" width="235" height="369" as="geometry"/>
+        </mxCell>
+        <mxCell id="12" value="STAGE 4&lt;br&gt;Welfare Output" style="swimlane;fontStyle=1;align=center;verticalAlign=middle;startSize=46;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="70" width="225" height="415" as="geometry"/>
+        </mxCell>
+        <mxCell id="13" value="&lt;b&gt;Gini Index&lt;/b&gt;&lt;br&gt;- Composite Simpson 1/3&lt;br&gt;&lt;br&gt;&lt;b&gt;Top Shares&lt;/b&gt;&lt;br&gt;- Top 1% &amp;amp; Top 0.1%&lt;br&gt;&lt;br&gt;&lt;b&gt;Poverty Line&lt;/b&gt;&lt;br&gt;- Inversion: mu * L&#x27;(p_H) = z&lt;br&gt;&lt;br&gt;&lt;b&gt;Sen Social Welfare&lt;/b&gt;&lt;br&gt;- W = mu(1 - G)" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=top;spacingTop=14;spacingLeft=10;spacingRight=10;whiteSpace=wrap;html=1;fontColor=#000000;fontFamily=Helvetica;fontSize=11;lineHeight=140;" vertex="1" parent="12">
+          <mxGeometry y="46" width="225" height="369" as="geometry"/>
+        </mxCell>
+        <mxCell id="14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;endSize=8;strokeColor=#000000;strokeWidth=1.5;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="3" target="5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;endSize=8;strokeColor=#000000;strokeWidth=1.5;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="5" target="10">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;endSize=8;strokeColor=#000000;strokeWidth=1.5;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="10" target="12">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

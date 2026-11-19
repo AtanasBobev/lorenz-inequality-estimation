@@ -1,0 +1,43 @@
+<mxfile host="Electron" agent="draw.io" version="24.0.0">
+  <diagram name="Diagram" id="mono-diag">
+    <mxGraphModel dx="1160" dy="615" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="615" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="2" value="&lt;b&gt;The Thomas Algorithm (TDMA): Solving Tridiagonal Spline Systems in O(N)&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];strokeColor=none;fillColor=none;fontColor=#000000;fontFamily=Helvetica;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="30" y="12" width="1100" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="3" value="&lt;b&gt;Tridiagonal System for Cubic Splines (n equations, n unknowns)&lt;/b&gt;" style="swimlane;fontStyle=0;align=left;verticalAlign=middle;spacingLeft=12;startSize=32;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="56" width="1060" height="196" as="geometry"/>
+        </mxCell>
+        <mxCell id="4" value="[&amp;nbsp;b_1&amp;nbsp;&amp;nbsp;c_1&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;]&amp;nbsp;[&amp;nbsp;m_1&amp;nbsp;]&amp;nbsp;&amp;nbsp;&amp;nbsp;[&amp;nbsp;d_1&amp;nbsp;]&lt;br&gt;[&amp;nbsp;a_2&amp;nbsp;&amp;nbsp;b_2&amp;nbsp;&amp;nbsp;c_2&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;]&amp;nbsp;[&amp;nbsp;m_2&amp;nbsp;]&amp;nbsp;&amp;nbsp;&amp;nbsp;[&amp;nbsp;d_2&amp;nbsp;]&lt;br&gt;[&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;a_3&amp;nbsp;&amp;nbsp;b_3&amp;nbsp;&amp;nbsp;c_3&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;]&amp;nbsp;[&amp;nbsp;m_3&amp;nbsp;]&amp;nbsp;=&amp;nbsp;[&amp;nbsp;d_3&amp;nbsp;]&lt;br&gt;[&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;a_4&amp;nbsp;&amp;nbsp;b_4&amp;nbsp;&amp;nbsp;c_4&amp;nbsp;]&amp;nbsp;[&amp;nbsp;m_4&amp;nbsp;]&amp;nbsp;&amp;nbsp;&amp;nbsp;[&amp;nbsp;d_4&amp;nbsp;]&lt;br&gt;[&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;0&amp;nbsp;&amp;nbsp;&amp;nbsp;a_5&amp;nbsp;&amp;nbsp;b_5&amp;nbsp;]&amp;nbsp;[&amp;nbsp;m_5&amp;nbsp;]&amp;nbsp;&amp;nbsp;&amp;nbsp;[&amp;nbsp;d_5&amp;nbsp;]&lt;br&gt;&lt;br&gt;Tridiagonal&amp;nbsp;structure:&amp;nbsp;subdiagonal&amp;nbsp;(a_i),&amp;nbsp;main&amp;nbsp;diagonal&amp;nbsp;(b_i),&amp;nbsp;superdiagonal&amp;nbsp;(c_i)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingTop=10;spacingLeft=26;html=1;fontColor=#000000;fontFamily=Courier New;fontSize=13;lineHeight=130;" vertex="1" parent="3">
+          <mxGeometry y="32" width="1060" height="164" as="geometry"/>
+        </mxCell>
+        <mxCell id="5" value="&lt;b&gt;Step 1: Forward Elimination (i = 2 to n)&lt;/b&gt;" style="swimlane;fontStyle=0;align=left;verticalAlign=middle;spacingLeft=10;startSize=34;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="296" width="495" height="178" as="geometry"/>
+        </mxCell>
+        <mxCell id="6" value="-&amp;nbsp;Eliminate&amp;nbsp;subdiagonal&amp;nbsp;entries&amp;nbsp;a_i&amp;nbsp;sequentially:&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;factor&amp;nbsp;=&amp;nbsp;a_i&amp;nbsp;/&amp;nbsp;b&#x27;_{i-1}&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;b&#x27;_i&amp;nbsp;&amp;nbsp;&amp;nbsp;=&amp;nbsp;b_i&amp;nbsp;-&amp;nbsp;factor&amp;nbsp;*&amp;nbsp;c_{i-1}&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;d&#x27;_i&amp;nbsp;&amp;nbsp;&amp;nbsp;=&amp;nbsp;d_i&amp;nbsp;-&amp;nbsp;factor&amp;nbsp;*&amp;nbsp;d&#x27;_{i-1}&lt;br&gt;-&amp;nbsp;Complexity:&amp;nbsp;3&amp;nbsp;flops&amp;nbsp;per&amp;nbsp;row&amp;nbsp;-&amp;gt;&amp;nbsp;O(N)&amp;nbsp;total" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;html=1;fontColor=#000000;fontFamily=Courier New;fontSize=12;lineHeight=140;" vertex="1" parent="5">
+          <mxGeometry y="34" width="495" height="144" as="geometry"/>
+        </mxCell>
+        <mxCell id="7" value="&lt;b&gt;Step 2: Back Substitution (i = n down to 1)&lt;/b&gt;" style="swimlane;fontStyle=0;align=left;verticalAlign=middle;spacingLeft=10;startSize=34;horizontal=1;collapsible=0;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="615" y="296" width="495" height="178" as="geometry"/>
+        </mxCell>
+        <mxCell id="8" value="-&amp;nbsp;Direct&amp;nbsp;solve&amp;nbsp;at&amp;nbsp;top&amp;nbsp;boundary:&amp;nbsp;m_n&amp;nbsp;=&amp;nbsp;d&#x27;_n&amp;nbsp;/&amp;nbsp;b&#x27;_n&lt;br&gt;-&amp;nbsp;Propagate&amp;nbsp;backwards&amp;nbsp;across&amp;nbsp;internal&amp;nbsp;knots:&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;m_i&amp;nbsp;=&amp;nbsp;(d&#x27;_i&amp;nbsp;-&amp;nbsp;c_i&amp;nbsp;*&amp;nbsp;m_{i+1})&amp;nbsp;/&amp;nbsp;b&#x27;_i&lt;br&gt;&lt;br&gt;-&amp;nbsp;Complexity:&amp;nbsp;2&amp;nbsp;flops&amp;nbsp;per&amp;nbsp;row&amp;nbsp;-&amp;gt;&amp;nbsp;O(N)&amp;nbsp;total" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingTop=10;spacingLeft=12;html=1;fontColor=#000000;fontFamily=Courier New;fontSize=12;lineHeight=140;" vertex="1" parent="7">
+          <mxGeometry y="34" width="495" height="144" as="geometry"/>
+        </mxCell>
+        <mxCell id="9" value="&lt;b&gt;Algorithmic Complexity:&lt;/b&gt;&lt;br&gt;- Standard dense Gaussian elimination requires O(N^3) time and O(N^2) memory.&lt;br&gt;- Exploiting tridiagonal band sparsity runs in O(N) time and O(N) memory." style="text;html=1;rounded=0;shadow=0;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.5;align=left;verticalAlign=middle;spacingLeft=14;fontColor=#000000;fontFamily=Helvetica;fontSize=12;lineHeight=145;" vertex="1" parent="1">
+          <mxGeometry x="50" y="508" width="1060" height="84" as="geometry"/>
+        </mxCell>
+        <mxCell id="10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;endSize=8;strokeColor=#000000;strokeWidth=1.5;exitX=0.2335;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="3" target="5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;endSize=8;strokeColor=#000000;strokeWidth=1.5;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="5" target="7">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;endSize=8;strokeColor=#000000;strokeWidth=1.5;exitX=0.5;exitY=1;entryX=0.7665;entryY=0;" edge="1" parent="1" source="7" target="9">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
