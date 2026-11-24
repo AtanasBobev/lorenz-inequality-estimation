@@ -261,7 +261,7 @@
                     <tr>
                       <td class="metric-label">Gini Index (G)</td>
                       <td class="metric-value" id="outGini">—</td>
-                      <td class="metric-label">Gastwirth Interval [G_L, G_U]</td>
+                      <td class="metric-label">Gastwirth Interval [G_L, Ĝ_U]</td>
                       <td class="metric-value" id="outGastwirth">—</td>
                     </tr>
                     <tr>
@@ -287,7 +287,7 @@
                     <tr>
                       <td class="metric-label">Top 1% Share / Elasticity (ε_z)</td>
                       <td class="metric-value" id="outTop1AndElasticity">—</td>
-                      <td class="metric-label">Top 10% / Top 0.1% Wealth</td>
+                      <td class="metric-label">Top 10% / Top 0.1% Income</td>
                       <td class="metric-value" id="outTop10And01">—</td>
                     </tr>
                   </tbody>
@@ -353,7 +353,8 @@
                 <span
                   >AICc penalizes knot parameterization (lower is better). On coarse deciles both
                   models interpolate knots (0.00‱ RMSE), but the Hybrid Pareto tail captures
-                  upper-tail concentration, reducing true continuous Gini error by up to 7.6×.</span
+                  upper-tail concentration, reducing quintile Gini MAE by 7.8× over spline-only
+                  fits.</span
                 >
                 <span id="badgeBestModel" class="badge badge-dark">Lowest In-Sample AICc: —</span>
               </div>

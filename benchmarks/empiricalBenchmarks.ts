@@ -200,7 +200,7 @@ export function runCrossModelAndDiagnosticsBenchmarks(): void {
   console.log(
     "=================================================================================================================="
   );
-  console.log(" SECTION 6: TOP-INCOME WEALTH SHARE RECOVERY vs WID ADMINISTRATIVE BENCHMARKS");
+  console.log(" SECTION 6: TOP-INCOME SHARE RECOVERY vs WID ADMINISTRATIVE BENCHMARKS");
   console.log(
     "=================================================================================================================="
   );
