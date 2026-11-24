@@ -190,7 +190,7 @@ export function renderMacroMetrics(
   }
 
   if (state.currentGastwirth.isCertified) {
-    setStatusBadge(el.badgeStatus, "pass", "Validations Pass");
+    setStatusBadge(el.badgeStatus, "pass", "G_est in [G_L, Ĝ_U]");
   } else {
     const boundsMsg = `Outside Gastwirth bounds: Gini ${metrics.giniIndex.toFixed(4)} not in [${state.currentGastwirth.lowerBound.toFixed(4)}, ${state.currentGastwirth.upperBound.toFixed(4)}]`;
     setStatusBadge(el.badgeStatus, "error", boundsMsg, boundsMsg);

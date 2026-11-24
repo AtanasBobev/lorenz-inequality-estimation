@@ -217,8 +217,8 @@
       }
       return 0.5 * (leftBound + rightBound);
     }
-    // Check the estimated Gini falls inside Gastwirth's (1972) distribution-free bounds [G_L, G_U]
-    // TODO: Add non-parametric bootstrap resampling to estimate confidence intervals alongside [G_L, G_U]
+    // Verify whether the reconstructed Gini estimate falls within the exact chord lower bound G_L
+    // and secant-approximated upper bound Ĝ_U (an internal enclosure check on G_est, not external G*).
     certifyGastwirthBounds(estimatedGini) {
       const dataset = this.model.getDataset();
       const points = dataset.points;
@@ -448,12 +448,12 @@
       year: 2022,
       agency: "US Census Bureau",
       officialGini: 0.488,
-      povertyLine: 28180,
-      currency: "EUR",
-      notes: "Current Population Survey Annual Social and Economic Supplement 2022 (converted to EUR @ 1.053 USD/EUR)."
+      povertyLine: 29678,
+      currency: "USD",
+      notes: "Current Population Survey Annual Social and Economic Supplement (CPS ASEC) 2022 (USD; 4-person poverty threshold: $29,678)."
     },
     dataset: {
-      meanIncome: 101e3,
+      meanIncome: 106400,
       points: [
         { populationShare: 0, incomeShare: 0 },
         { populationShare: 0.1, incomeShare: 0.012 },
@@ -1824,8 +1824,8 @@
             points: US_CENSUS_CPS_2022.dataset.points.map((pt) => ({ ...pt }))
           },
           poverty: US_CENSUS_CPS_2022.metadata.povertyLine,
-          // 28180 EUR
-          currency: "EUR",
+          // $29,678 USD (4-person threshold)
+          currency: US_CENSUS_CPS_2022.metadata.currency,
           benchmarkGini: US_CENSUS_CPS_2022.metadata.officialGini,
           benchmarkLabel: "US Census Bureau CPS ASEC",
           benchmarkType: "empirical"
@@ -2585,7 +2585,7 @@
       }
     }
     if (state2.currentGastwirth.isCertified) {
-      setStatusBadge(el2.badgeStatus, "pass", "Validations Pass");
+      setStatusBadge(el2.badgeStatus, "pass", "G_est in [G_L, \u011C_U]");
     } else {
       const boundsMsg = `Outside Gastwirth bounds: Gini ${metrics.giniIndex.toFixed(4)} not in [${state2.currentGastwirth.lowerBound.toFixed(4)}, ${state2.currentGastwirth.upperBound.toFixed(4)}]`;
       setStatusBadge(el2.badgeStatus, "error", boundsMsg, boundsMsg);

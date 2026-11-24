@@ -106,7 +106,21 @@ export function runLatencyAndConvergenceBenchmarks(iterations: number): void {
     timesComprehensive
   );
 
-  const allStats = [statsPchipDecile, statsHybrid, statsPoverty, statsComprehensive];
+  const datasetK100 = new LogNormalDistribution(0.8).sampleQuantiles(100, 25000);
+  const timesK100: number[] = [];
+  for (let i = 0; i < iterations; i++) {
+    const t0 = performance.now();
+    const hyb100 = new HybridLorenzCurve(datasetK100);
+    const eng100 = new InequalityEngine(hyb100, simpson, bisection);
+    const g100 = eng100.computeGini(200).giniIndex;
+    eng100.getPovertyHeadcount(12000);
+    const cert100 = eng100.certifyGastwirthBounds(g100);
+    const t1 = performance.now();
+    if (cert100.isCertified) timesK100.push(t1 - t0);
+  }
+  const statsK100 = computeStats("Full Hybrid Pipeline (k=100, Simpson 200)", timesK100);
+
+  const allStats = [statsPchipDecile, statsHybrid, statsPoverty, statsComprehensive, statsK100];
   console.log(
     "---------------------------------------------------------------------------------------------------------"
   );
@@ -130,24 +144,31 @@ export function runLatencyAndConvergenceBenchmarks(iterations: number): void {
   );
 
   console.log(
-    `Gastwirth Enclosure Confinement: ${gastwirthCertifiedCount} / ${iterations} trials certified (${((gastwirthCertifiedCount / iterations) * 100).toFixed(1)}% compliance)\n`
+    `Gastwirth Enclosure Confinement: ${gastwirthCertifiedCount} / ${iterations} reconstructed estimates enclosed in [G_L, Ĝ_U] (${((gastwirthCertifiedCount / iterations) * 100).toFixed(1)}% compliance)\n`
   );
 
-  console.log("---------------------------------------------------------------------------------");
+  console.log(
+    "-----------------------------------------------------------------------------------------------------------"
+  );
   console.log(" Error Decay vs Ground-Truth Log-Normal (sigma = 0.8, Analytical Gini = 0.428392)");
-  console.log("---------------------------------------------------------------------------------");
+  console.log(
+    "-----------------------------------------------------------------------------------------------------------"
+  );
   const logNorm = new LogNormalDistribution(0.8);
   const gStar = logNorm.theoreticalGini;
   console.log(
-    "| Grid Size (k) | Knot Spacing (h) | Reconstructed Gini | Absolute Error | Relative Error |"
+    "| Grid Size (k) | Knot Spacing (h) | Reconstructed Gini | Absolute Error | Relative Error | Bounds [G_L, Ĝ_U]      |"
   );
-  console.log("---------------------------------------------------------------------------------");
+  console.log(
+    "-----------------------------------------------------------------------------------------------------------"
+  );
 
   for (const k of [5, 10, 20, 50, 100, 200]) {
     const dataset = logNorm.sampleQuantiles(k);
     const model = new PchipLorenzCurve(dataset);
     const engine = new InequalityEngine(model, simpson, bisection);
     const gEst = engine.computeGini(400).giniIndex;
+    const cert = engine.certifyGastwirthBounds(gEst);
     const absErr = Math.abs(gEst - gStar);
     const relErr = (absErr / gStar) * 100;
 
@@ -156,9 +177,10 @@ export function runLatencyAndConvergenceBenchmarks(iterations: number): void {
     const gStr = gEst.toFixed(6).padStart(18);
     const errStr = absErr.toExponential(3).padStart(14);
     const relStr = `${relErr.toFixed(3)}%`.padStart(14);
-    console.log(`| ${kStr} | ${hStr} | ${gStr} | ${errStr} | ${relStr} |`);
+    const boundsStr = `[${cert.lowerBound.toFixed(5)}, ${cert.upperBound.toFixed(5)}]`.padStart(22);
+    console.log(`| ${kStr} | ${hStr} | ${gStr} | ${errStr} | ${relStr} | ${boundsStr} |`);
   }
   console.log(
-    "---------------------------------------------------------------------------------\n"
+    "-----------------------------------------------------------------------------------------------------------\n"
   );
 }

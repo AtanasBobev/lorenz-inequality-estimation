@@ -62,8 +62,8 @@ export function loadPreset(key: string): PresetResult {
           meanIncome: US_CENSUS_CPS_2022.dataset.meanIncome,
           points: US_CENSUS_CPS_2022.dataset.points.map((pt) => ({ ...pt }))
         },
-        poverty: US_CENSUS_CPS_2022.metadata.povertyLine, // 28180 EUR
-        currency: "EUR",
+        poverty: US_CENSUS_CPS_2022.metadata.povertyLine, // $29,678 USD (4-person threshold)
+        currency: US_CENSUS_CPS_2022.metadata.currency,
         benchmarkGini: US_CENSUS_CPS_2022.metadata.officialGini,
         benchmarkLabel: "US Census Bureau CPS ASEC",
         benchmarkType: "empirical"

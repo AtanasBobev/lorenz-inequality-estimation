@@ -7,6 +7,8 @@ import {
   NewtonRaphsonSolver,
   InequalityEngine,
   SensitivityAnalyzer,
+  ModelSelectionEvaluator,
+  KakwaniPodderCurve,
   LogNormalDistribution,
   SinghMaddalaDistribution,
   DagumDistribution,
@@ -21,6 +23,7 @@ interface BenchmarkDatasetEntry {
   readonly name: string;
   readonly ds: QuantileDataset;
   readonly pov: number;
+  readonly currency: string;
   readonly targetGini: number;
 }
 
@@ -30,42 +33,49 @@ function buildCrossDatasets(): BenchmarkDatasetEntry[] {
       name: "Bulgaria NSI 2022 Deciles",
       ds: BULGARIAN_NSI_2022.dataset,
       pov: BULGARIAN_NSI_2022.metadata.povertyLine,
+      currency: BULGARIAN_NSI_2022.metadata.currency,
       targetGini: BULGARIAN_NSI_2022.metadata.officialGini
     },
     {
       name: "Bulgaria NSI Quintiles",
       ds: BULGARIAN_NSI_QUINTILES_2022.dataset,
       pov: BULGARIAN_NSI_QUINTILES_2022.metadata.povertyLine,
+      currency: BULGARIAN_NSI_QUINTILES_2022.metadata.currency,
       targetGini: BULGARIAN_NSI_QUINTILES_2022.metadata.officialGini
     },
     {
       name: "Eurostat EU-27 2022",
       ds: EUROSTAT_EU27_2022.dataset,
       pov: EUROSTAT_EU27_2022.metadata.povertyLine,
+      currency: "EUR",
       targetGini: EUROSTAT_EU27_2022.metadata.officialGini
     },
     {
       name: "US Census Bureau CPS 2022",
       ds: US_CENSUS_CPS_2022.dataset,
       pov: US_CENSUS_CPS_2022.metadata.povertyLine,
+      currency: US_CENSUS_CPS_2022.metadata.currency,
       targetGini: US_CENSUS_CPS_2022.metadata.officialGini
     },
     {
       name: "Synthetic Log-Normal (σ=0.7)",
       ds: new LogNormalDistribution(0.7).sampleQuantiles(10, 25000),
       pov: 12000,
+      currency: "EUR",
       targetGini: new LogNormalDistribution(0.7).theoreticalGini
     },
     {
       name: "Synthetic Singh-Maddala",
       ds: new SinghMaddalaDistribution(2.8, 1.7).sampleQuantiles(10, 24000),
       pov: 11500,
+      currency: "EUR",
       targetGini: new SinghMaddalaDistribution(2.8, 1.7).theoreticalGini
     },
     {
       name: "Synthetic Dagum (a=3.5)",
       ds: new DagumDistribution(3.5, 0.7).sampleQuantiles(10, 26000),
       pov: 12500,
+      currency: "EUR",
       targetGini: new DagumDistribution(3.5, 0.7).theoreticalGini
     }
   ];
@@ -85,7 +95,7 @@ export function runCrossModelAndDiagnosticsBenchmarks(): void {
     "=================================================================================================================="
   );
   console.log(
-    "| Dataset                      | Target G* | Natural Spline | PCHIP Model  | Hybrid (p*=0.8) | Gastwirth [G_L, G_U]  | Status     |"
+    "| Dataset                      | Target G* | Natural Spline | PCHIP Model  | Hybrid (p*=0.8) | Bounds [G_L, Ĝ_U]     | Status     |"
   );
   console.log(
     "------------------------------------------------------------------------------------------------------------------"
@@ -103,7 +113,7 @@ export function runCrossModelAndDiagnosticsBenchmarks(): void {
     const cert = engPch.certifyGastwirthBounds(gPch);
 
     const bounds = `[${cert.lowerBound.toFixed(4)}, ${cert.upperBound.toFixed(4)}]`.padStart(21);
-    const status = (cert.isCertified ? "Certified" : "Uncertified").padStart(10);
+    const status = (cert.isCertified ? "Enclosed" : "Outside").padStart(10);
     console.log(
       `| ${d.name.padEnd(28)} | ${d.targetGini.toFixed(4).padStart(9)} | ${gCs.toFixed(4).padStart(14)} | ${gPch.toFixed(4).padStart(12)} | ${gHyb.toFixed(4).padStart(15)} | ${bounds} | ${status} |`
     );
@@ -131,12 +141,12 @@ export function runCrossModelAndDiagnosticsBenchmarks(): void {
     const hyb = new HybridLorenzCurve(d.ds, { bodyModel: pch, splicePoint: 0.8 });
     const m = new InequalityEngine(hyb, simpson, nrSolver).computeComprehensiveMetrics(200, d.pov);
 
-    const meanStr = `${Math.round(d.ds.meanIncome || 10000)} EUR`.padStart(13);
-    const povStr = `${d.pov} EUR`.padStart(14);
+    const meanStr = `${Math.round(d.ds.meanIncome || 10000)} ${d.currency}`.padStart(13);
+    const povStr = `${d.pov} ${d.currency}`.padStart(14);
     const palmaStr = isFinite(m.palmaRatio)
       ? m.palmaRatio.toFixed(2).padStart(11)
       : "N/A".padStart(11);
-    const senStr = `${Math.round(m.senWelfareIndex).toLocaleString()} EUR`.padStart(13);
+    const senStr = `${Math.round(m.senWelfareIndex).toLocaleString()} ${d.currency}`.padStart(13);
     const hcStr =
       m.povertyHeadcount !== undefined
         ? `${(m.povertyHeadcount * 100).toFixed(1)}%`.padStart(11)
@@ -158,10 +168,10 @@ export function runCrossModelAndDiagnosticsBenchmarks(): void {
     "=================================================================================================================="
   );
   console.log(
-    "| Dataset                      | Headcount (H) | Density f(z) | dH / dz (/EUR) | dH / dμ (/EUR) | Elasticity ε_z | Elasticity ε_μ |"
+    "| Dataset                      | Unit | Headcount (H) | Slope 1/f(z) | dH / dz       | dH / dμ       | Elasticity ε_z | Elasticity ε_μ |"
   );
   console.log(
-    "------------------------------------------------------------------------------------------------------------------"
+    "----------------------------------------------------------------------------------------------------------------------"
   );
 
   for (const d of crossDatasets) {
@@ -171,16 +181,16 @@ export function runCrossModelAndDiagnosticsBenchmarks(): void {
 
     const hcStr = `${(el.povertyHeadcount * 100).toFixed(1)}%`.padStart(13);
     const densStr =
-      el.incomeDensity > 0 ? el.incomeDensity.toFixed(4).padStart(12) : "N/A".padStart(12);
-    const dHdzStr = el.dH_dz > 0 ? el.dH_dz.toExponential(2).padStart(14) : "N/A".padStart(14);
-    const dHdmuStr = el.dH_dmu < 0 ? el.dH_dmu.toExponential(2).padStart(14) : "N/A".padStart(14);
+      el.incomeDensity > 0 ? el.incomeDensity.toFixed(1).padStart(12) : "N/A".padStart(12);
+    const dHdzStr = el.dH_dz > 0 ? el.dH_dz.toExponential(2).padStart(13) : "N/A".padStart(13);
+    const dHdmuStr = el.dH_dmu < 0 ? el.dH_dmu.toExponential(2).padStart(13) : "N/A".padStart(13);
     const ezStr =
       el.elasticityZ !== 0 ? el.elasticityZ.toFixed(2).padStart(14) : "N/A".padStart(14);
     const emuStr =
       el.elasticityMu !== 0 ? el.elasticityMu.toFixed(2).padStart(14) : "N/A".padStart(14);
 
     console.log(
-      `| ${d.name.padEnd(28)} | ${hcStr} | ${densStr} | ${dHdzStr} | ${dHdmuStr} | ${ezStr} | ${emuStr} |`
+      `| ${d.name.padEnd(28)} | ${d.currency.padEnd(4)} | ${hcStr} | ${densStr} | ${dHdzStr} | ${dHdmuStr} | ${ezStr} | ${emuStr} |`
     );
   }
   console.log(
@@ -248,7 +258,39 @@ export function runCrossModelAndDiagnosticsBenchmarks(): void {
   );
   for (const pt of bgSweep) {
     console.log(
-      `| ${pt.pStar.toFixed(2).padStart(16)} | ${pt.giniIndex.toFixed(4).padStart(14)} | ${pt.tailAlpha.toFixed(3).padStart(16)} | ${`${(pt.top1PercentShare * 100).toFixed(2)}%`.padStart(12)} | ${`${(pt.top01PercentShare * 100).toFixed(2)}%`.padStart(14)} | ${pt.secondDerivativeJump.toFixed(3).padStart(14)} | ${(pt.isCertified ? "Certified" : "Uncertified").padStart(16)} |`
+      `| ${pt.pStar.toFixed(2).padStart(16)} | ${pt.giniIndex.toFixed(4).padStart(14)} | ${pt.tailAlpha.toFixed(3).padStart(16)} | ${`${(pt.top1PercentShare * 100).toFixed(2)}%`.padStart(12)} | ${`${(pt.top01PercentShare * 100).toFixed(2)}%`.padStart(14)} | ${pt.secondDerivativeJump.toFixed(3).padStart(14)} | ${(pt.isCertified ? "Enclosed" : "Outside").padStart(16)} |`
+    );
+  }
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------\n"
+  );
+
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(" SECTION 8: MODEL SELECTION (AICc, BIC & PENALIZED OPTIMAL KNOT p*)");
+  console.log(
+    "=================================================================================================================="
+  );
+  console.log(
+    "| Dataset                      | Hybrid80 AICc | Kakwani AICc | w_Hyb80 | p*_opt | alpha(p*_opt) |"
+  );
+  console.log(
+    "------------------------------------------------------------------------------------------------------------------"
+  );
+  for (const d of crossDatasets.slice(0, 4).filter((_, idx) => idx !== 1)) {
+    const pch = new PchipLorenzCurve(d.ds);
+    const hyb80 = new HybridLorenzCurve(d.ds, { bodyModel: pch, splicePoint: 0.8 });
+    const kak = new KakwaniPodderCurve(d.ds);
+    const cmp = ModelSelectionEvaluator.compareModels(d.ds, [
+      { name: "Hybrid80", model: hyb80, parameterCount: 2 },
+      { name: "Kakwani", model: kak, parameterCount: 3 }
+    ]);
+    const hRec = cmp.find((r) => r.modelName === "Hybrid80")!;
+    const kRec = cmp.find((r) => r.modelName === "Kakwani")!;
+    const opt = ModelSelectionEvaluator.findOptimalKnot(d.ds);
+    console.log(
+      `| ${d.name.padEnd(28)} | ${hRec.aicc.toFixed(2).padStart(13)} | ${kRec.aicc.toFixed(2).padStart(12)} | ${hRec.akaikeWeight.toFixed(4).padStart(7)} | ${opt.optimalKnot.toFixed(2).padStart(6)} | ${opt.optimalAlpha.toFixed(3).padStart(13)} |`
     );
   }
   console.log(

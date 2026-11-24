@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   PchipLorenzCurve,
+  HybridLorenzCurve,
   SimpsonsIntegrator,
   BisectionSolver,
   InequalityEngine,
@@ -25,6 +26,25 @@ describe("Empirical Performance and Precision Verification (NFR-1, NFR-2)", () =
 
     // Must be well beneath the 2.0 ms maximum bound specified in NFR-1 (typically < 0.05 ms)
     expect(meanLatencyMs).toBeLessThan(1.0);
+  });
+
+  it("executes full hybrid pipeline at k = 100 knots under 2.0 ms (NFR-1)", () => {
+    const simpson = new SimpsonsIntegrator();
+    const bisection = new BisectionSolver();
+    const dataset100 = new LogNormalDistribution(0.8).sampleQuantiles(100, 25000);
+
+    const t0 = performance.now();
+    const iterations = 200;
+    for (let i = 0; i < iterations; i++) {
+      const hybrid = new HybridLorenzCurve(dataset100);
+      const engine = new InequalityEngine(hybrid, simpson, bisection);
+      const g = engine.computeGini(200).giniIndex;
+      engine.getPovertyHeadcount(12000);
+      const cert = engine.certifyGastwirthBounds(g);
+      expect(cert.isCertified).toBe(true);
+    }
+    const meanLatencyMs = (performance.now() - t0) / iterations;
+    expect(meanLatencyMs).toBeLessThan(2.0);
   });
 
   it("achieves 100% Gastwirth bounding compliance across randomized perturbations (NFR-2)", () => {

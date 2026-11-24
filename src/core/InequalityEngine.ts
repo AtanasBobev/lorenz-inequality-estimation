@@ -139,8 +139,8 @@ export class InequalityEngine {
     return 0.5 * (leftBound + rightBound);
   }
 
-  // Check the estimated Gini falls inside Gastwirth's (1972) distribution-free bounds [G_L, G_U]
-  // TODO: Add non-parametric bootstrap resampling to estimate confidence intervals alongside [G_L, G_U]
+  // Verify whether the reconstructed Gini estimate falls within the exact chord lower bound G_L
+  // and secant-approximated upper bound Ĝ_U (an internal enclosure check on G_est, not external G*).
   public certifyGastwirthBounds(estimatedGini?: number): GastwirthCertificate {
     const dataset = this.model.getDataset();
     const points = dataset.points;

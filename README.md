@@ -7,14 +7,14 @@ The numerical routines (Thomas tridiagonal solver, Fritsch-Carlson PCHIP splines
 ## What It Does
 
 - Fits a shape-preserving PCHIP spline across the interior brackets so the curve stays monotone ($L'(p) \ge 0$) and passes through every input knot.
-- Runs an iterative slope-projection loop to enforce convexity ($L''(p) \ge 0$), preventing Runge oscillations and keeping marginal incomes non-decreasing.
+- Runs an iterative slope-projection loop to enforce convexity ($L''(p) \ge 0$), preventing Runge oscillations and keeping marginal incomes non-decreasing (empirical convergence in 1–3 sweeps, hard cap 5).
 - Splices a Pareto Type I upper tail onto the spline at a threshold $p^_$, matching both $L(p^_)$ and $L'(p^*)$ in closed form without an iterative optimizer.
-- Computes distribution-free Gastwirth bounds ($[G_L, G_U]$) alongside every estimate to verify that the reconstructed Gini stays inside the feasible interval.
-- Runs entirely in the browser or Node.js (ES2022) with zero runtime packages, completing a full hybrid fit and integration pass in roughly 5 microseconds on decile tables.
+- Computes the exact chord lower bound $G_L$ and secant-approximated upper bound $\hat{G}_U$ ($[G_L, \hat{G}_U]$) to verify that the reconstructed Gini estimate $G_{\mathrm{est}}$ stays enclosed inside its discrete interval.
+- Runs entirely in the browser (`demo/app.js`, 112.7 kB) or Node.js (ES2022) with zero runtime packages, averaging 0.0042 ms (`k = 10`) to 0.0128 ms (`k = 100`) in Node.js 22 and 0.0087 ms to 0.0178 ms in Edge Chromium V8.
 
 ## Requirements
 
-- Node.js v18+
+- Node.js v20+
 - npm
 
 ## Setup
@@ -174,7 +174,7 @@ console.log({
   theoreticalGini: dist.theoreticalGini,
   estimatedGini: metrics.giniIndex,
   absError,
-  certified: metrics.gastwirthCertificate.isCertified,
+  enclosedInBounds: metrics.gastwirthCertificate.isCertified,
   optimalSplice: optimal.optimalKnot
 });
 ```

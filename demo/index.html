@@ -59,8 +59,8 @@
                 <select id="selectPreset" class="form-select">
                   <option value="bg_nsi_2022">Bulgarian NSI 2022 (Deciles, EUR)</option>
                   <option value="bg_nsi_quintiles">Bulgarian NSI 2022 (Quintiles, EUR)</option>
-                  <option value="eurostat_2022">Eurostat EU-27 (2022, EUR)</option>
-                  <option value="us_census_2022">US Census Bureau CPS (2022, EUR)</option>
+                  <option value="eurostat_2022">Eurostat EU-27 (2022, EUR PPS)</option>
+                  <option value="us_census_2022">US Census Bureau CPS (2022, USD)</option>
                   <option value="syn_lognormal">Synthetic Log-Normal (σ = 0.70)</option>
                   <option value="syn_singh_maddala">Synthetic Singh-Maddala</option>
                   <option value="syn_dagum">Synthetic Dagum</option>
@@ -271,7 +271,7 @@
                       <td class="metric-value" id="outSen">—</td>
                     </tr>
                     <tr>
-                      <td class="metric-label">Poverty Headcount H = p*</td>
+                      <td class="metric-label">Poverty Headcount (H)</td>
                       <td class="metric-value" id="outHeadcount">—</td>
                       <td class="metric-label">Pareto Tail Exponent (α)</td>
                       <td class="metric-value" id="outAlpha">—</td>
@@ -347,8 +347,8 @@
                 </table>
               </div>
               <div
-                class="p-2 bg-light border-top d-flex justify-content-between align-items-center text-muted"
-                style="font-size: 0.73rem"
+                class="p-2 bg-light border-top d-flex flex-wrap justify-content-between align-items-center text-muted"
+                style="font-size: 0.73rem; gap: 0.5rem"
               >
                 <span
                   >AICc penalizes knot parameterization (lower is better). On coarse deciles both

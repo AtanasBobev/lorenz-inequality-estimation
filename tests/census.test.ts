@@ -59,5 +59,10 @@ describe("Empirical Census Dataset Reconstruction", () => {
     // Hybrid Pareto tail captures upper-tail skewness
     const tailAlpha = hybrid.getTailAlpha();
     expect(tailAlpha).toBeGreaterThan(1.0);
+
+    // Verify native USD currency and official Census CPS 2022 benchmarks
+    expect(US_CENSUS_CPS_2022.metadata.currency).toBe("USD");
+    expect(US_CENSUS_CPS_2022.dataset.meanIncome).toBe(106400);
+    expect(US_CENSUS_CPS_2022.metadata.povertyLine).toBe(29678);
   });
 });

@@ -104,13 +104,13 @@ export const US_CENSUS_CPS_2022: CensusBenchmarkEntry = {
     year: 2022,
     agency: "US Census Bureau",
     officialGini: 0.488,
-    povertyLine: 28180,
-    currency: "EUR",
+    povertyLine: 29678,
+    currency: "USD",
     notes:
-      "Current Population Survey Annual Social and Economic Supplement 2022 (converted to EUR @ 1.053 USD/EUR)."
+      "Current Population Survey Annual Social and Economic Supplement (CPS ASEC) 2022 (USD; 4-person poverty threshold: $29,678)."
   },
   dataset: {
-    meanIncome: 101000,
+    meanIncome: 106400,
     points: [
       { populationShare: 0.0, incomeShare: 0.0 },
       { populationShare: 0.1, incomeShare: 0.012 },
