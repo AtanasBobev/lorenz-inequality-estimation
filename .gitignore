@@ -1,7 +1,9 @@
 node_modules/
 dist/
 coverage/
-docs/
+docs/*
+!docs/Senior_Project_Cumulative_Draft.docx
+!docs/Senior_Project_Defense_Presentation.pptx
 .DS_Store
 *.log
 
